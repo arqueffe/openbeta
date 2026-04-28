@@ -76,6 +76,10 @@ class _AuthHtmlInputState extends State<AuthHtmlInput> {
   }
 
   void _buildDom() {
+    final theme = Theme.of(context);
+    final textColor = widget.enabled
+        ? theme.colorScheme.onSurface
+        : const Color.from(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0);
     _container.style
       ..width = '100%'
       ..height = '100%'
@@ -88,6 +92,12 @@ class _AuthHtmlInputState extends State<AuthHtmlInput> {
       ..border = 'none'
       ..outline = 'none'
       ..background = 'transparent'
+      // No way to easily convert to rgba hexcode...
+      ..color = '#'
+        '${(textColor.r * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+        '${(textColor.g * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+        '${(textColor.b * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+        '${(textColor.a * 255).toInt().toRadixString(16).padLeft(2, '0')}'
       ..fontSize = '16px';
 
     _input.onInput.listen((_) {
