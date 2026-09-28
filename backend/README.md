@@ -113,6 +113,35 @@ The API provides comprehensive climbing statistics including:
 
 ## Setup Instructions
 
+### Local Development Stack
+
+The repository includes a Docker Compose setup for running the WordPress plugin,
+MariaDB, and Flutter web app together on the same local origin. From the
+repository root, run:
+
+```bash
+./backend/start-local.sh
+```
+
+The script builds the Flutter app for `/topo/`, starts WordPress and MariaDB,
+installs and activates the plugin, creates a local administrator, and seeds one
+demo route per lane if the routes table is empty. Open the lane-link test URL
+at `http://127.0.0.1:8081/topo/?lane=12`; WordPress admin is at
+`http://127.0.0.1:8081/wp-admin/`.
+
+The generated admin password is printed at startup and saved locally in
+`backend/.local-admin-password`. Database credentials are generated into
+`backend/.env`. Both files are excluded from Git. The services bind only to
+`127.0.0.1`; route fixtures are added only to an empty routes table.
+
+Stop the services without deleting local data with:
+
+```bash
+docker compose --project-directory backend -f backend/compose.yaml down
+```
+
+To remove the local WordPress/database data as well, add `--volumes`.
+
 ### Prerequisites
 - WordPress 5.0+ installation
 - PHP 7.4+ with MySQL/MariaDB

@@ -11,7 +11,9 @@ import 'route_detail_screen.dart';
 import 'add_route_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int? initialLaneId;
+
+  const HomeScreen({super.key, this.initialLaneId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,10 +24,26 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final routeProvider = context.read<RouteProvider>();
-      routeProvider.loadInitialData();
-      routeProvider.loadGradeColors();
+      _loadInitialData();
     });
+  }
+
+  Future<void> _loadInitialData() async {
+    final routeProvider = context.read<RouteProvider>();
+    await routeProvider.loadInitialData();
+
+    if (!mounted) {
+      return;
+    }
+
+    final laneId = widget.initialLaneId;
+    if (laneId == null) {
+      return;
+    }
+
+    if (routeProvider.lanes.any((lane) => lane.id == laneId)) {
+      routeProvider.setLaneIdsFilter({laneId});
+    }
   }
 
   @override

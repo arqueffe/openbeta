@@ -26,6 +26,7 @@ The application follows **Clean Architecture** principles with the **Provider pa
 ### Route Management
 - **Interactive 3D Climbing Wall**: Visual route representation using `flutter_3d_controller`
 - **Advanced Filtering**: Multi-criteria filtering (grade, setter, wall section, color)
+- **Lane Links**: Open the web app with a lane selected by adding `?lane={laneId}` to its URL, for example `https://example.com/app/?lane=12`
 - **Route Interactions**: Likes, comments, ticks, projects, grade proposals
 - **Real-time Updates**: Cached API with intelligent refresh strategies
 

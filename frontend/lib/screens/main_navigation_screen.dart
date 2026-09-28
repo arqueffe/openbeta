@@ -6,7 +6,9 @@ import 'profile_screen.dart';
 import '../providers/route_provider.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final int? initialLaneId;
+
+  const MainNavigationScreen({super.key, this.initialLaneId});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -15,8 +17,8 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(initialLaneId: widget.initialLaneId),
     const ProfileScreen(),
   ];
 

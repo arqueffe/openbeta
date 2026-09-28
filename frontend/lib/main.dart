@@ -15,6 +15,7 @@ import 'services/weekly_announcement_service.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/login_screen.dart';
 import 'widgets/weekly_update_dialog.dart';
+import 'utils/lane_deep_link.dart';
 
 bool _shouldForwardLog(String message) {
   if (kDebugMode) {
@@ -208,7 +209,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           });
         }
 
-        return const MainNavigationScreen();
+        return MainNavigationScreen(initialLaneId: laneIdFromUri(Uri.base));
       },
     );
   }
