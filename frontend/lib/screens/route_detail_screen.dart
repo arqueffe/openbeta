@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -20,15 +22,196 @@ class RouteDetailScreen extends StatefulWidget {
   State<RouteDetailScreen> createState() => _RouteDetailScreenState();
 }
 
-class _RouteDetailScreenState extends State<RouteDetailScreen> {
+class _RouteDetailScreenState extends State<RouteDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _imageRevealController;
+  bool _sheetIsAtTop = true;
+
   @override
   void initState() {
     super.initState();
+    _imageRevealController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    )..addListener(() {
+        if (mounted) {
+          setState(() {});
+        }
+      });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final routeProvider = context.read<RouteProvider>();
       routeProvider.loadRoute(widget.routeId);
       routeProvider.loadGradeColors();
     });
+  }
+
+  @override
+  void dispose() {
+    _imageRevealController.dispose();
+    super.dispose();
+  }
+
+  void _updateImageReveal(double delta) {
+    _imageRevealController.value =
+        (_imageRevealController.value + delta).clamp(0.0, 1.0);
+  }
+
+  void _settleImageReveal() {
+    _imageRevealController.animateTo(
+      _imageRevealController.value > 0.2 ? 1 : 0,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _buildRouteDetails(models.Route route, AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RouteSummaryCard(route: route, l10n: l10n),
+              const SizedBox(height: 16),
+              RouteInteractions(route: route, compact: true),
+              if (route.name == 'Unnamed') ...[
+                const SizedBox(height: 16),
+                NameProposalSection(route: route),
+              ],
+              if (route.comments != null && route.comments!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                RouteCommentsSection(
+                  comments: route.comments!,
+                  l10n: l10n,
+                ),
+              ],
+              if (route.gradeProposals != null &&
+                  route.gradeProposals!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                RouteGradeProposalsSection(
+                  proposals: route.gradeProposals!,
+                  l10n: l10n,
+                ),
+              ],
+              if (route.warnings != null && route.warnings!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                RouteWarningsSection(
+                  warnings: route.warnings!,
+                  l10n: l10n,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStandardRoute(models.Route route, AppLocalizations l10n) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text(route.displayName(unnamedFallback: l10n.unnamed)),
+        ),
+        SliverToBoxAdapter(child: _buildRouteDetails(route, l10n)),
+      ],
+    );
+  }
+
+  Widget _buildImageRevealRoute(
+    BuildContext context,
+    models.Route route,
+    AppLocalizations l10n,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sheetTop =
+            (constraints.maxHeight * 0.34).clamp(220.0, 320.0).toDouble();
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            _RouteHero(route: route),
+            AnimatedBuilder(
+              animation: _imageRevealController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(
+                    0,
+                    constraints.maxHeight * _imageRevealController.value,
+                  ),
+                  child: child,
+                );
+              },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification.metrics.axis == Axis.vertical) {
+                    _sheetIsAtTop = notification.metrics.pixels <= 0;
+                  }
+                  return false;
+                },
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(child: SizedBox(height: sheetTop)),
+                    SliverToBoxAdapter(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(28),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            _RouteImageRevealHandle(
+                              onDragUpdate: (details) {
+                                if (_sheetIsAtTop) {
+                                  _updateImageReveal(
+                                    details.delta.dy / constraints.maxHeight,
+                                  );
+                                }
+                              },
+                              onDragEnd: (_) => _settleImageReveal(),
+                            ),
+                            _buildRouteDetails(route, l10n),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_imageRevealController.value > 0.001)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (_) => RouteImageDialog(route.image!),
+                  );
+                },
+                onVerticalDragUpdate: (details) {
+                  _updateImageReveal(
+                    details.delta.dy / constraints.maxHeight,
+                  );
+                },
+                onVerticalDragEnd: (_) => _settleImageReveal(),
+              ),
+            if (_imageRevealController.value > 0.001)
+              const Positioned(
+                top: 12,
+                left: 12,
+                child: SafeArea(child: _RouteBackButton()),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -55,77 +238,9 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
             return Center(child: Text(l10n.routeNotFound));
           }
 
-          return CustomScrollView(
-            slivers: [
-              if (route.image != null)
-                SliverFillViewport(
-                  delegate: SliverChildListDelegate.fixed([
-                    _RouteHero(route: route),
-                  ]),
-                ),
-              if (route.image == null)
-                SliverAppBar(
-                  surfaceTintColor: Colors.transparent,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  title: Text(route.displayName(unnamedFallback: l10n.unnamed)),
-                ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: _RouteSummaryCard(route: route, l10n: l10n),
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          RouteInteractions(route: route, compact: true),
-                          if (route.name == 'Unnamed') ...[
-                            const SizedBox(height: 16),
-                            NameProposalSection(route: route),
-                          ],
-                          if (route.comments != null &&
-                              route.comments!.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            RouteCommentsSection(
-                              comments: route.comments!,
-                              l10n: l10n,
-                            ),
-                          ],
-                          if (route.gradeProposals != null &&
-                              route.gradeProposals!.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            RouteGradeProposalsSection(
-                              proposals: route.gradeProposals!,
-                              l10n: l10n,
-                            ),
-                          ],
-                          if (route.warnings != null &&
-                              route.warnings!.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            RouteWarningsSection(
-                              warnings: route.warnings!,
-                              l10n: l10n,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
+          return route.image == null
+              ? _buildStandardRoute(route, l10n)
+              : _buildImageRevealRoute(context, route, l10n);
         },
       ),
     );
@@ -155,16 +270,35 @@ class _RouteHero extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (image != null)
-            Image.network(
-              image,
-              fit: BoxFit.cover,
-              webHtmlElementStrategy: WebHtmlElementStrategy.never,
-              errorBuilder: (_, __, ___) => _RouteImagePlaceholder(
-                color: theme.colorScheme.primaryContainer,
+            ClipRect(
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: Transform.scale(
+                  scale: 1.08,
+                  child: Image.network(
+                    image,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.low,
+                    webHtmlElementStrategy: WebHtmlElementStrategy.never,
+                    errorBuilder: (_, __, ___) => _RouteImagePlaceholder(
+                      color: theme.colorScheme.primaryContainer,
+                    ),
+                  ),
+                ),
               ),
             )
           else
             _RouteImagePlaceholder(color: theme.colorScheme.primaryContainer),
+          if (image != null)
+            ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
+          if (image != null)
+            Image.network(
+              image,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              webHtmlElementStrategy: WebHtmlElementStrategy.never,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -184,19 +318,10 @@ class _RouteHero extends StatelessWidget {
               bottom: 20,
               child: _PhotoHint(),
             ),
-          Positioned(
+          const Positioned(
             top: 12,
             left: 12,
-            child: SafeArea(
-              child: IconButton(
-                onPressed: () => Navigator.maybePop(context),
-                icon: const Icon(Icons.arrow_back),
-                color: Colors.white,
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withValues(alpha: 0.38),
-                ),
-              ),
-            ),
+            child: SafeArea(child: _RouteBackButton()),
           ),
         ],
       ),
@@ -236,6 +361,54 @@ class _PhotoHint extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Icon(Icons.zoom_out_map, color: Colors.white, size: 18),
+    );
+  }
+}
+
+class _RouteBackButton extends StatelessWidget {
+  const _RouteBackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => Navigator.maybePop(context),
+      icon: const Icon(Icons.arrow_back),
+      color: Colors.white,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.black.withValues(alpha: 0.38),
+      ),
+    );
+  }
+}
+
+class _RouteImageRevealHandle extends StatelessWidget {
+  final GestureDragUpdateCallback onDragUpdate;
+  final GestureDragEndCallback onDragEnd;
+
+  const _RouteImageRevealHandle({
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragUpdate: onDragUpdate,
+      onVerticalDragEnd: onDragEnd,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Center(
+          child: Container(
+            width: 42,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
