@@ -140,19 +140,21 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                                           ? 1.0
                                           : 0.0));
                           final isSelected = selectionStrength > 0.001;
-                          final paintedSelectionStrength =
-                              transition == null ? selectionStrength : 0.0;
                           final isDimmed =
                               widget.laneSelectionStrengths != null ||
                                       widget.selectedLaneId != null
                                   ? !isSelected
                                   : hasActiveFilters &&
                                       !matchingLaneIds.contains(shape.laneId);
+                          final dimStrength =
+                              widget.laneSelectionStrengths != null
+                                  ? 1 - selectionStrength
+                                  : (isDimmed ? 1.0 : 0.0);
                           return _buildLaneOverlay(
                             shape,
                             scale,
-                            paintedSelectionStrength,
-                            isDimmed,
+                            selectionStrength,
+                            dimStrength,
                             () => _onLaneSelected(routeProvider, shape.laneId),
                           );
                         }),
@@ -160,7 +162,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                           Positioned.fill(
                             child: IgnorePointer(
                               child: CustomPaint(
-                                painter: MorphingLanePainter(
+                                painter: LaneRailTransitionPainter(
                                   from: transition.from,
                                   to: transition.to,
                                   progress: transition.progress,
@@ -229,7 +231,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
     LaneShape shape,
     double scale,
     double selectionStrength,
-    bool isDimmed,
+    double dimStrength,
     VoidCallback onTap,
   ) {
     // Convert polygon points to scaled coordinates
@@ -248,7 +250,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
           painter: LanePainter(
             points: scaledPoints,
             selectionStrength: selectionStrength,
-            isDimmed: isDimmed,
+            dimStrength: dimStrength,
             laneId: shape.laneId,
             offset: Offset(shape.x1 * scale, shape.y1 * scale),
           ),
@@ -280,15 +282,13 @@ class _LaneTransition {
   });
 }
 
-class MorphingLanePainter extends CustomPainter {
-  static const _sampleCount = 48;
-
+class LaneRailTransitionPainter extends CustomPainter {
   final LaneShape from;
   final LaneShape to;
   final double progress;
   final double scale;
 
-  MorphingLanePainter({
+  LaneRailTransitionPainter({
     required this.from,
     required this.to,
     required this.progress,
@@ -297,143 +297,87 @@ class MorphingLanePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fromPoints = _samplePolygon(from);
-    final toPoints = _samplePolygon(to);
-    final points = List<Offset>.generate(
-      _sampleCount,
-      (index) => Offset.lerp(
-        fromPoints[index],
-        toPoints[index],
-        progress,
-      )!,
+    final start = _shapeCenter(from);
+    final end = _shapeCenter(to);
+    final distance = (end - start).distance;
+    final control = Offset(
+      (start.dx + end.dx) / 2,
+      (start.dy + end.dy) / 2 - (18 + distance * 0.08),
     );
-    if (points.isEmpty) {
-      return;
-    }
-
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (final point in points.skip(1)) {
-      path.lineTo(point.dx, point.dy);
-    }
-    path.close();
-
-    final glowPaint = Paint()
-      ..color = const Color(0xFFFCB900).withValues(alpha: 0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    final fillPaint = Paint()
-      ..color = const Color(0xFFFCB900).withValues(alpha: 0.42)
-      ..style = PaintingStyle.fill;
-    final borderPaint = Paint()
-      ..color = const Color(0xFFFCB900)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+    final rail = Path()
+      ..moveTo(start.dx, start.dy)
+      ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
 
     canvas
-      ..drawPath(path, glowPaint)
-      ..drawPath(path, fillPaint)
-      ..drawPath(path, borderPaint);
+      ..drawPath(
+        rail,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      )
+      ..drawPath(
+        rail,
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.62)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round,
+      );
 
-    final center = points.fold<Offset>(
-          Offset.zero,
-          (sum, point) => sum + point,
-        ) /
-        points.length.toDouble();
-    final laneId = progress < 0.5 ? from.laneId : to.laneId;
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: '$laneId',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          shadows: [
-            Shadow(color: Colors.black, offset: Offset(1, 1), blurRadius: 2),
-          ],
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(
-      canvas,
-      center - Offset(textPainter.width / 2, textPainter.height / 2),
+    final metric = rail.computeMetrics().first;
+    canvas.drawPath(
+      metric.extractPath(0, metric.length * progress),
+      Paint()
+        ..color = const Color(0xFFFCB900)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
     );
+
+    final inverseProgress = 1 - progress;
+    final marker = Offset(
+      inverseProgress * inverseProgress * start.dx +
+          2 * inverseProgress * progress * control.dx +
+          progress * progress * end.dx,
+      inverseProgress * inverseProgress * start.dy +
+          2 * inverseProgress * progress * control.dy +
+          progress * progress * end.dy,
+    );
+    canvas
+      ..drawCircle(
+        marker,
+        12,
+        Paint()
+          ..color = const Color(0xFFFCB900).withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      )
+      ..drawCircle(marker, 7, Paint()..color = const Color(0xFFFCB900))
+      ..drawCircle(
+        marker,
+        3,
+        Paint()..color = Colors.white.withValues(alpha: 0.92),
+      );
   }
 
-  List<Offset> _samplePolygon(LaneShape shape) {
-    var points = shape.points
-        .map((point) => Offset(point[0] * scale, point[1] * scale))
-        .toList();
-    if (points.length < 2) {
-      return List.filled(
-        _sampleCount,
-        points.isEmpty ? Offset.zero : points.first,
+  Offset _shapeCenter(LaneShape shape) {
+    if (shape.points.isEmpty) {
+      return Offset(
+        (shape.x1 + shape.x2) * scale / 2,
+        (shape.y1 + shape.y2) * scale / 2,
       );
     }
-
-    if (_signedArea(points) < 0) {
-      points = points.reversed.toList();
-    }
-    points = _rotateToTop(points);
-
-    final lengths = <double>[0];
-    var perimeter = 0.0;
-    for (var index = 0; index < points.length; index++) {
-      perimeter +=
-          (points[(index + 1) % points.length] - points[index]).distance;
-      lengths.add(perimeter);
-    }
-    if (perimeter == 0) {
-      return List.filled(_sampleCount, points.first);
-    }
-
-    return List.generate(_sampleCount, (sampleIndex) {
-      final target = perimeter * sampleIndex / _sampleCount;
-      var segment = 0;
-      while (segment < points.length - 1 && lengths[segment + 1] < target) {
-        segment++;
-      }
-      final segmentLength = lengths[segment + 1] - lengths[segment];
-      final segmentProgress = segmentLength == 0
-          ? 0.0
-          : (target - lengths[segment]) / segmentLength;
-      return Offset.lerp(
-        points[segment],
-        points[(segment + 1) % points.length],
-        segmentProgress,
-      )!;
-    });
-  }
-
-  List<Offset> _rotateToTop(List<Offset> points) {
-    var anchorIndex = 0;
-    for (var index = 1; index < points.length; index++) {
-      final candidate = points[index];
-      final anchor = points[anchorIndex];
-      if (candidate.dy < anchor.dy ||
-          (candidate.dy == anchor.dy && candidate.dx < anchor.dx)) {
-        anchorIndex = index;
-      }
-    }
-    return [
-      ...points.skip(anchorIndex),
-      ...points.take(anchorIndex),
-    ];
-  }
-
-  double _signedArea(List<Offset> points) {
-    var area = 0.0;
-    for (var index = 0; index < points.length; index++) {
-      final current = points[index];
-      final next = points[(index + 1) % points.length];
-      area += current.dx * next.dy - next.dx * current.dy;
-    }
-    return area / 2;
+    final total = shape.points.fold<Offset>(
+      Offset.zero,
+      (sum, point) => sum + Offset(point[0] * scale, point[1] * scale),
+    );
+    return total / shape.points.length.toDouble();
   }
 
   @override
-  bool shouldRepaint(covariant MorphingLanePainter oldDelegate) {
+  bool shouldRepaint(covariant LaneRailTransitionPainter oldDelegate) {
     return oldDelegate.from != from ||
         oldDelegate.to != to ||
         oldDelegate.progress != progress ||
@@ -444,14 +388,14 @@ class MorphingLanePainter extends CustomPainter {
 class LanePainter extends CustomPainter {
   final List<Offset> points;
   final double selectionStrength;
-  final bool isDimmed;
+  final double dimStrength;
   final int laneId;
   final Offset offset;
 
   LanePainter({
     required this.points,
     required this.selectionStrength,
-    required this.isDimmed,
+    required this.dimStrength,
     required this.laneId,
     required this.offset,
   });
@@ -459,28 +403,6 @@ class LanePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final isSelected = selectionStrength > 0.001;
-    final dimmedOpacity = isSelected ? 0.0 : 0.42;
-
-    final paint = Paint()
-      ..color = isSelected
-          ? const Color(0xFFFCB900).withValues(
-              alpha: 0.42 * selectionStrength,
-            )
-          : isDimmed
-              ? Colors.black.withValues(alpha: dimmedOpacity)
-              : Colors.transparent
-      ..style = PaintingStyle.fill;
-
-    final borderPaint = Paint()
-      ..color = isSelected
-          ? const Color(0xFFFCB900).withValues(
-              alpha: selectionStrength.clamp(0.2, 1.0),
-            )
-          : isDimmed
-              ? Colors.grey.shade500.withValues(alpha: 0.8)
-              : Colors.white.withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = isSelected ? 1 + selectionStrength : 1;
 
     // Adjust points relative to the positioned widget
     final adjustedPoints = points
@@ -496,11 +418,49 @@ class LanePainter extends CustomPainter {
       }
       path.close();
 
-      // Fill the polygon
-      canvas.drawPath(path, paint);
+      if (dimStrength > 0.001) {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Colors.black.withValues(
+              alpha: 0.42 * dimStrength.clamp(0.0, 1.0),
+            )
+            ..style = PaintingStyle.fill,
+        );
+      }
 
-      // Draw the border
-      canvas.drawPath(path, borderPaint);
+      if (isSelected) {
+        canvas
+          ..drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFFFCB900).withValues(
+                alpha: 0.42 * selectionStrength,
+              )
+              ..style = PaintingStyle.fill,
+          )
+          ..drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFFFCB900).withValues(
+                alpha: selectionStrength.clamp(0.2, 1.0),
+              )
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1 + selectionStrength,
+          );
+      } else {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Color.lerp(
+              Colors.white.withValues(alpha: 0.3),
+              Colors.grey.shade500.withValues(alpha: 0.8),
+              dimStrength.clamp(0.0, 1.0),
+            )!
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
 
       // Draw lane number if selected or on hover
       if (selectionStrength >= 0.5) {
@@ -552,7 +512,7 @@ class LanePainter extends CustomPainter {
   @override
   bool shouldRepaint(LanePainter oldDelegate) {
     return oldDelegate.selectionStrength != selectionStrength ||
-        oldDelegate.isDimmed != isDimmed ||
+        oldDelegate.dimStrength != dimStrength ||
         oldDelegate.points != points;
   }
 }
