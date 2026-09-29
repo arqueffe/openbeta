@@ -924,6 +924,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Essayez d\'ajuster vos filtres ou d\'ajouter une nouvelle voie';
 
   @override
+  String get swipeToChangeLane => 'Balayez pour changer de couloir';
+
+  @override
   String get unknown => 'Inconnu';
 
   @override

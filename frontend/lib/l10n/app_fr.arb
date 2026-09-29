@@ -292,6 +292,7 @@
   "clearAll": "Tout effacer",
   "noRoutesFound": "Aucune voie trouvée",
   "adjustFiltersOrAddRoute": "Essayez d'ajuster vos filtres ou d'ajouter une nouvelle voie",
+  "swipeToChangeLane": "Balayez pour changer de couloir",
   "unknown": "Inconnu",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},

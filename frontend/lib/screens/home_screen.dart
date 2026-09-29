@@ -9,6 +9,7 @@ import '../widgets/custom_app_bar.dart';
 import '../generated/l10n/app_localizations.dart';
 import 'route_detail_screen.dart';
 import 'add_route_screen.dart';
+import 'lane_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int? initialLaneId;
@@ -20,6 +21,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _initialLaneOpened = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,13 +40,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final laneId = widget.initialLaneId;
-    if (laneId == null) {
+    if (laneId == null || _initialLaneOpened) {
       return;
     }
 
     if (routeProvider.lanes.any((lane) => lane.id == laneId)) {
-      routeProvider.setLaneIdsFilter({laneId});
+      _initialLaneOpened = true;
+      await _openLane(laneId);
     }
+  }
+
+  Future<void> _openLane(int laneId) {
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LaneScreen(initialLaneId: laneId),
+      ),
+    );
   }
 
   @override
@@ -119,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return Column(
             children: [
               // Interactive Climbing Wall
-              const InteractiveClimbingWall(),
+              InteractiveClimbingWall(onLaneSelected: _openLane),
 
               // Keep the spacer stable when there are no filters, but allow
               // the active filter bar to grow on narrow screens.

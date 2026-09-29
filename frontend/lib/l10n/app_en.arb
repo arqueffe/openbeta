@@ -370,6 +370,7 @@
   "clearAll": "Clear All",
   "noRoutesFound": "No routes found",
   "adjustFiltersOrAddRoute": "Try adjusting your filters or add a new route",
+  "swipeToChangeLane": "Swipe to change lane",
   "unknown": "Unknown",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},
