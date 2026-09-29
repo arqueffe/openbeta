@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<String> _preloadedLaneImages = {};
   late final AnimationController _laneImageRevealController;
   double _fullScreenHorizontalDrag = 0;
+  int? _fullScreenLaneTargetId;
 
   @override
   void initState() {
@@ -91,7 +92,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _selectCarouselLane(RouteProvider routeProvider, int laneId) {
-    _laneImageRevealController.value = 0;
+    final keepImageRevealed = _fullScreenLaneTargetId == laneId;
+    _fullScreenLaneTargetId = null;
+    if (!keepImageRevealed) {
+      _laneImageRevealController.value = 0;
+    }
     routeProvider.setLaneIdsFilter({laneId});
     replaceLaneUrl(laneId);
   }
@@ -171,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     final laneId = lanes[targetIndex].id;
+    _fullScreenLaneTargetId = laneId;
     routeProvider.setLaneIdsFilter({laneId});
     replaceLaneUrl(laneId);
     setState(() => _wallLaneStrengths = {laneId: 1});
