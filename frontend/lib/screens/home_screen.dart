@@ -7,9 +7,9 @@ import '../widgets/filter_drawer.dart';
 import '../widgets/interactive_climbing_wall.dart';
 import '../widgets/custom_app_bar.dart';
 import '../generated/l10n/app_localizations.dart';
+import '../utils/lane_url.dart';
 import 'route_detail_screen.dart';
 import 'add_route_screen.dart';
-import 'lane_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int? initialLaneId;
@@ -20,15 +20,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-enum _WallInteractionMode {
-  explore,
-  select,
-}
-
 class _HomeScreenState extends State<HomeScreen> {
-  bool _initialLaneOpened = false;
-  _WallInteractionMode _wallMode = _WallInteractionMode.explore;
-
   @override
   void initState() {
     super.initState();
@@ -46,22 +38,56 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final laneId = widget.initialLaneId;
-    if (laneId == null || _initialLaneOpened) {
+    if (laneId == null) {
       return;
     }
 
     if (routeProvider.lanes.any((lane) => lane.id == laneId)) {
-      _initialLaneOpened = true;
-      await _openLane(laneId);
+      routeProvider.setLaneIdsFilter({laneId});
     }
   }
 
-  Future<void> _openLane(int laneId) {
-    return Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LaneScreen(initialLaneId: laneId),
-      ),
+  void _toggleLane(RouteProvider routeProvider, int laneId) {
+    routeProvider.toggleLaneFilter(laneId);
+    _syncLaneUrl(routeProvider.selectedLaneIds);
+  }
+
+  void _syncLaneUrl(Set<int> selectedLaneIds) {
+    replaceLaneUrl(
+      selectedLaneIds.length == 1 ? selectedLaneIds.first : null,
     );
+  }
+
+  void _swipeToAdjacentLane(
+    DragEndDetails details,
+    RouteProvider routeProvider,
+  ) {
+    if (routeProvider.selectedLaneIds.length != 1) {
+      return;
+    }
+
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 250) {
+      return;
+    }
+
+    final lanes = [...routeProvider.lanes]
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final currentLaneId = routeProvider.selectedLaneIds.first;
+    final currentIndex = lanes.indexWhere((lane) => lane.id == currentLaneId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    final direction = velocity < 0 ? 1 : -1;
+    final nextIndex = currentIndex + direction;
+    if (nextIndex < 0 || nextIndex >= lanes.length) {
+      return;
+    }
+
+    final nextLaneId = lanes[nextIndex].id;
+    routeProvider.setLaneIdsFilter({nextLaneId});
+    replaceLaneUrl(nextLaneId);
   }
 
   @override
@@ -134,33 +160,57 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          return Column(
-            children: [
-              _WallModeSwitcher(
-                mode: _wallMode,
-                selectedLaneCount: routeProvider.selectedLaneIds.length,
-                onChanged: (mode) {
-                  setState(() => _wallMode = mode);
-                },
-                onClear: routeProvider.selectedLaneIds.isEmpty
-                    ? null
-                    : () => routeProvider.setLaneIdsFilter(<int>{}),
-              ),
+          final selectedLaneIds = routeProvider.selectedLaneIds;
+          final singleLaneId =
+              selectedLaneIds.length == 1 ? selectedLaneIds.first : null;
+          final laneRoutes = singleLaneId == null
+              ? null
+              : routeProvider.routesForLane(singleLaneId);
+          final backgroundImage = laneRoutes != null && laneRoutes.isNotEmpty
+              ? laneRoutes.first.image?.trim()
+              : null;
+          final hasBackground =
+              backgroundImage != null && backgroundImage.isNotEmpty;
 
-              // Interactive Climbing Wall
-              InteractiveClimbingWall(
-                onLaneSelected: (laneId) {
-                  if (_wallMode == _WallInteractionMode.select) {
-                    routeProvider.toggleLaneFilter(laneId);
-                  } else {
-                    _openLane(laneId);
-                  }
-                },
-              ),
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: singleLaneId == null
+                ? null
+                : (details) =>
+                    _swipeToAdjacentLane(details, routeProvider),
+            child: Stack(
+              children: [
+                if (hasBackground)
+                  Positioned.fill(
+                    child: Image.network(
+                      backgroundImage,
+                      fit: BoxFit.cover,
+                      webHtmlElementStrategy:
+                          WebHtmlElementStrategy.never,
+                      errorBuilder: (_, __, ___) =>
+                          const SizedBox.shrink(),
+                    ),
+                  ),
+                if (hasBackground)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.86),
+                    ),
+                  ),
+                Column(
+                  children: [
+                    // Interactive Climbing Wall
+                    InteractiveClimbingWall(
+                      onLaneSelected: (laneId) =>
+                          _toggleLane(routeProvider, laneId),
+                    ),
 
-              // Keep the spacer stable when there are no filters, but allow
-              // the active filter bar to grow on narrow screens.
-              routeProvider.hasActiveFilters
+                    // Keep the spacer stable when there are no filters, but allow
+                    // the active filter bar to grow on narrow screens.
+                    routeProvider.hasActiveFilters
                   ? Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(minHeight: 48),
@@ -179,13 +229,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final isCompact = constraints.maxWidth < 560;
-                          final summary =
-                              '${l10n.filters}: ${routeProvider.routes.length}';
+                          final summary = singleLaneId == null
+                              ? '${l10n.filters}: ${routeProvider.routes.length}'
+                              : '${l10n.laneLabel(singleLaneId)} · '
+                                  '${l10n.swipeForAdjacentLanes}';
 
                           return Row(
                             children: [
                               Icon(
-                                Icons.filter_alt,
+                                singleLaneId == null
+                                    ? Icons.filter_alt
+                                    : Icons.swipe,
                                 size: 16,
                                 color: Theme.of(context)
                                     .colorScheme
@@ -207,8 +261,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               isCompact
                                   ? IconButton(
-                                      onPressed: () =>
-                                          routeProvider.clearAllFilters(),
+                                      onPressed: () {
+                                        routeProvider.clearAllFilters();
+                                        replaceLaneUrl(null);
+                                      },
                                       tooltip: l10n.clearAll,
                                       icon: Icon(
                                         Icons.clear,
@@ -219,8 +275,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       visualDensity: VisualDensity.compact,
                                     )
                                   : TextButton(
-                                      onPressed: () =>
-                                          routeProvider.clearAllFilters(),
+                                      onPressed: () {
+                                        routeProvider.clearAllFilters();
+                                        replaceLaneUrl(null);
+                                      },
                                       child: Text(
                                         l10n.clearAll,
                                         style: TextStyle(
@@ -236,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )
                   : const SizedBox(height: 48),
-              Expanded(
+                    Expanded(
                 child: routeProvider.routes.isEmpty
                     ? Center(
                         child: Column(
@@ -287,117 +345,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                       ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _WallModeSwitcher extends StatelessWidget {
-  final _WallInteractionMode mode;
-  final int selectedLaneCount;
-  final ValueChanged<_WallInteractionMode> onChanged;
-  final VoidCallback? onClear;
-
-  const _WallModeSwitcher({
-    required this.mode,
-    required this.selectedLaneCount,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    final isSelecting = mode == _WallInteractionMode.select;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: isSelecting
-            ? colorScheme.primaryContainer
-            : colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelecting
-              ? colorScheme.primary.withValues(alpha: 0.45)
-              : colorScheme.outlineVariant,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: SegmentedButton<_WallInteractionMode>(
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: _WallInteractionMode.explore,
-                      icon: const Icon(Icons.open_in_new, size: 18),
-                      label: Text(l10n.exploreLanes),
-                    ),
-                    ButtonSegment(
-                      value: _WallInteractionMode.select,
-                      icon: const Icon(Icons.library_add_check, size: 18),
-                      label: Text(l10n.selectLanes),
                     ),
                   ],
-                  selected: {mode},
-                  onSelectionChanged: (selection) {
-                    onChanged(selection.first);
-                  },
                 ),
-              ),
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            child: isSelecting
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.touch_app_outlined,
-                          size: 16,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            l10n.tapLanesToFilter,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ),
-                        if (selectedLaneCount > 0)
-                          TextButton(
-                                onPressed: onClear,
-                                child: Text(
-                                  '$selectedLaneCount · ${l10n.clearAll}',
-                                ),
-                          ),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }

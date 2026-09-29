@@ -292,10 +292,7 @@
   "clearAll": "Tout effacer",
   "noRoutesFound": "Aucune voie trouvée",
   "adjustFiltersOrAddRoute": "Essayez d'ajuster vos filtres ou d'ajouter une nouvelle voie",
-  "swipeToChangeLane": "Balayez pour changer de couloir",
-  "exploreLanes": "Explorer",
-  "selectLanes": "Choisir les couloirs",
-  "tapLanesToFilter": "Touchez les couloirs à ajouter ou retirer du filtre",
+  "swipeForAdjacentLanes": "Balayez vers les couloirs voisins",
   "unknown": "Inconnu",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},

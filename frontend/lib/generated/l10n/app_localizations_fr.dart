@@ -924,17 +924,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Essayez d\'ajuster vos filtres ou d\'ajouter une nouvelle voie';
 
   @override
-  String get swipeToChangeLane => 'Balayez pour changer de couloir';
-
-  @override
-  String get exploreLanes => 'Explorer';
-
-  @override
-  String get selectLanes => 'Choisir les couloirs';
-
-  @override
-  String get tapLanesToFilter =>
-      'Touchez les couloirs à ajouter ou retirer du filtre';
+  String get swipeForAdjacentLanes => 'Balayez vers les couloirs voisins';
 
   @override
   String get unknown => 'Inconnu';

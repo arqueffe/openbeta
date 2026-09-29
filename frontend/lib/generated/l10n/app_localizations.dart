@@ -1808,29 +1808,11 @@ abstract class AppLocalizations {
   /// **'Try adjusting your filters or add a new route'**
   String get adjustFiltersOrAddRoute;
 
-  /// No description provided for @swipeToChangeLane.
+  /// No description provided for @swipeForAdjacentLanes.
   ///
   /// In en, this message translates to:
-  /// **'Swipe to change lane'**
-  String get swipeToChangeLane;
-
-  /// No description provided for @exploreLanes.
-  ///
-  /// In en, this message translates to:
-  /// **'Explore'**
-  String get exploreLanes;
-
-  /// No description provided for @selectLanes.
-  ///
-  /// In en, this message translates to:
-  /// **'Select lanes'**
-  String get selectLanes;
-
-  /// No description provided for @tapLanesToFilter.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap lanes to add or remove them from the route filter'**
-  String get tapLanesToFilter;
+  /// **'Swipe for adjacent lanes'**
+  String get swipeForAdjacentLanes;
 
   /// No description provided for @unknown.
   ///

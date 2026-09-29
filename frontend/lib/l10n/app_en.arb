@@ -370,10 +370,7 @@
   "clearAll": "Clear All",
   "noRoutesFound": "No routes found",
   "adjustFiltersOrAddRoute": "Try adjusting your filters or add a new route",
-  "swipeToChangeLane": "Swipe to change lane",
-  "exploreLanes": "Explore",
-  "selectLanes": "Select lanes",
-  "tapLanesToFilter": "Tap lanes to add or remove them from the route filter",
+  "swipeForAdjacentLanes": "Swipe for adjacent lanes",
   "unknown": "Unknown",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},
