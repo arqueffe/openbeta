@@ -5,6 +5,7 @@ import '../generated/l10n/app_localizations.dart';
 import '../models/lane_models.dart';
 import '../providers/route_provider.dart';
 import '../utils/lane_url.dart';
+import '../widgets/custom_app_bar.dart';
 import '../widgets/interactive_climbing_wall.dart';
 import '../widgets/route_card.dart';
 import 'route_detail_screen.dart';
@@ -76,27 +77,8 @@ class _LaneScreenState extends State<LaneScreen> {
         final currentLane = lanes[_currentIndex.clamp(0, lanes.length - 1)];
 
         return Scaffold(
-          appBar: AppBar(
-            titleSpacing: 0,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  currentLane.name.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        letterSpacing: 1.4,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                Text(
-                  l10n.laneLabel(currentLane.id),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
+          appBar: CustomAppBar(
+            title: l10n.laneLabel(currentLane.id),
           ),
           body: PageView.builder(
             controller: _pageController,
@@ -246,17 +228,28 @@ class _LaneHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       decoration: BoxDecoration(
-        color: const Color(0xFF242821),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primaryContainer.withValues(alpha: 0.72),
+            colorScheme.surface,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1F172018),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            color: colorScheme.shadow.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -271,15 +264,19 @@ class _LaneHero extends StatelessWidget {
                 Expanded(
                   child: Text(
                     l10n.swipeToChangeLane.toUpperCase(),
-                    style: const TextStyle(
-                      color: Color(0xFFCED2C8),
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
                       fontSize: 11,
                       letterSpacing: 1.35,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const Icon(Icons.swipe, size: 20, color: Color(0xFFFCB900)),
+                Icon(
+                  Icons.swipe,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
               ],
             ),
           ),
@@ -293,16 +290,17 @@ class _LaneHero extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(16),
+              color: colorScheme.surface.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     lane.name,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -314,13 +312,13 @@ class _LaneHero extends StatelessWidget {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFCB900),
+                    color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     '$routeCount ${l10n.navRoutes.toLowerCase()}',
-                    style: const TextStyle(
-                      color: Color(0xFF242821),
+                    style: TextStyle(
+                      color: colorScheme.onPrimaryContainer,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),

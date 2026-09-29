@@ -28,31 +28,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
 
           // Refresh routes when returning to the Routes tab (index 0)
           if (index == 0) {
-            final routeProvider = Provider.of<RouteProvider>(
-              context,
-              listen: false,
-            );
+            final routeProvider =
+                Provider.of<RouteProvider>(context, listen: false);
             routeProvider.refreshRoutes();
           }
         },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.explore_outlined),
-            selectedIcon: const Icon(Icons.explore),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home),
             label: l10n.navRoutes,
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person),
             label: l10n.navProfile,
           ),
         ],
