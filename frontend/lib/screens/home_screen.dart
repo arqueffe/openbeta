@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen>
   Map<int, double> _wallLaneStrengths = const {};
   final Set<String> _preloadedLaneImages = {};
   late final AnimationController _laneImageRevealController;
+  double _fullScreenHorizontalDrag = 0;
 
   @override
   void initState() {
@@ -151,6 +152,28 @@ class _HomeScreenState extends State<HomeScreen>
         }
       });
     }
+  }
+
+  void _selectFullScreenLane(
+    RouteProvider routeProvider,
+    List<Lane> lanes,
+    int selectedLaneId,
+    int direction,
+  ) {
+    final selectedIndex = lanes.indexWhere(
+      (lane) => lane.id == selectedLaneId,
+    );
+    final targetIndex = selectedIndex + direction;
+    if (selectedIndex < 0 ||
+        targetIndex < 0 ||
+        targetIndex >= lanes.length) {
+      return;
+    }
+
+    final laneId = lanes[targetIndex].id;
+    routeProvider.setLaneIdsFilter({laneId});
+    replaceLaneUrl(laneId);
+    setState(() => _wallLaneStrengths = {laneId: 1});
   }
 
   @override
@@ -295,39 +318,59 @@ class _HomeScreenState extends State<HomeScreen>
             builder: (context, child) {
               final progress = _laneImageRevealController.value;
               final laneImageProvider = NetworkImage(laneImage);
+              final selectedLaneIndex = lanes.indexWhere(
+                (lane) => lane.id == singleLaneId,
+              );
+              final hasPreviousLane = selectedLaneIndex > 0;
+              final hasNextLane =
+                  selectedLaneIndex >= 0 &&
+                  selectedLaneIndex < lanes.length - 1;
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      ClipRect(
-                        child: ImageFiltered(
-                          imageFilter: ui.ImageFilter.blur(
-                            sigmaX: 22,
-                            sigmaY: 22,
-                          ),
-                          child: Transform.scale(
-                            scale: 1.08,
-                            child: Image(
-                              image: laneImageProvider,
-                              fit: BoxFit.cover,
-                              filterQuality: FilterQuality.low,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
-                            ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: SizedBox.expand(
+                          key: ValueKey(laneImage),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRect(
+                                child: ImageFiltered(
+                                  imageFilter: ui.ImageFilter.blur(
+                                    sigmaX: 22,
+                                    sigmaY: 22,
+                                  ),
+                                  child: Transform.scale(
+                                    scale: 1.08,
+                                    child: Image(
+                                      image: laneImageProvider,
+                                      fit: BoxFit.cover,
+                                      filterQuality: FilterQuality.low,
+                                      errorBuilder: (_, __, ___) =>
+                                          const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              ColoredBox(
+                                color: Colors.black.withValues(alpha: 0.2),
+                              ),
+                              Image(
+                                image: laneImageProvider,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                filterQuality: FilterQuality.high,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      ColoredBox(
-                        color: Colors.black.withValues(alpha: 0.2),
-                      ),
-                      Image(
-                        image: laneImageProvider,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        filterQuality: FilterQuality.high,
-                        errorBuilder: (_, __, ___) =>
-                            const SizedBox.shrink(),
                       ),
                       ColoredBox(
                         color: Theme.of(context)
@@ -342,6 +385,37 @@ class _HomeScreenState extends State<HomeScreen>
                       if (progress > 0.001)
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
+                          onHorizontalDragStart: (_) {
+                            _fullScreenHorizontalDrag = 0;
+                          },
+                          onHorizontalDragUpdate: (details) {
+                            _fullScreenHorizontalDrag += details.delta.dx;
+                          },
+                          onHorizontalDragEnd: (details) {
+                            final velocity = details.primaryVelocity ?? 0;
+                            final threshold = constraints.maxWidth * 0.12;
+                            if (_fullScreenHorizontalDrag < -threshold ||
+                                velocity < -450) {
+                              _selectFullScreenLane(
+                                routeProvider,
+                                lanes,
+                                singleLaneId!,
+                                1,
+                              );
+                            } else if (_fullScreenHorizontalDrag > threshold ||
+                                velocity > 450) {
+                              _selectFullScreenLane(
+                                routeProvider,
+                                lanes,
+                                singleLaneId!,
+                                -1,
+                              );
+                            }
+                            _fullScreenHorizontalDrag = 0;
+                          },
+                          onHorizontalDragCancel: () {
+                            _fullScreenHorizontalDrag = 0;
+                          },
                           onVerticalDragUpdate: (details) {
                             _updateLaneImageReveal(
                               details.delta.dy / constraints.maxHeight,
@@ -353,24 +427,38 @@ class _HomeScreenState extends State<HomeScreen>
                               curve: Curves.easeOutCubic,
                             );
                           },
-                          child: const Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Padding(
-                              padding: EdgeInsets.only(bottom: 18),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Color(0x59000000),
-                                  shape: BoxShape.circle,
+                          child: Stack(
+                            children: [
+                              if (hasPreviousLane)
+                                const Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(left: 12),
+                                    child: _FullScreenLaneChevron(
+                                      icon: Icons.chevron_left,
+                                    ),
+                                  ),
                                 ),
+                              if (hasNextLane)
+                                const Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(right: 12),
+                                    child: _FullScreenLaneChevron(
+                                      icon: Icons.chevron_right,
+                                    ),
+                                  ),
+                                ),
+                              const Align(
+                                alignment: Alignment.bottomCenter,
                                 child: Padding(
-                                  padding: EdgeInsets.all(6),
-                                  child: Icon(
-                                    Icons.keyboard_arrow_up,
-                                    color: Colors.white,
+                                  padding: EdgeInsets.only(bottom: 18),
+                                  child: _FullScreenLaneChevron(
+                                    icon: Icons.keyboard_arrow_up,
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                     ],
@@ -380,6 +468,26 @@ class _HomeScreenState extends State<HomeScreen>
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _FullScreenLaneChevron extends StatelessWidget {
+  final IconData icon;
+
+  const _FullScreenLaneChevron({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Color(0x59000000),
+        shape: BoxShape.circle,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, color: Colors.white),
       ),
     );
   }
