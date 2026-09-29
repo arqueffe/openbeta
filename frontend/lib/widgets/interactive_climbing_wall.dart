@@ -7,6 +7,7 @@ import '../services/climbing_wall_service.dart';
 class InteractiveClimbingWall extends StatefulWidget {
   final ValueChanged<int>? onLaneSelected;
   final int? selectedLaneId;
+  final Map<int, double>? laneSelectionStrengths;
   final double? height;
   final bool showCard;
 
@@ -14,6 +15,7 @@ class InteractiveClimbingWall extends StatefulWidget {
     super.key,
     this.onLaneSelected,
     this.selectedLaneId,
+    this.laneSelectionStrengths,
     this.height,
     this.showCard = true,
   });
@@ -103,9 +105,8 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                     constraints.maxWidth / _wallData!.imageInfo.width;
                 final heightScale =
                     constraints.maxHeight / _wallData!.imageInfo.height;
-                final scale = widthScale < heightScale
-                    ? widthScale
-                    : heightScale;
+                final scale =
+                    widthScale < heightScale ? widthScale : heightScale;
                 final scaledWidth = _wallData!.imageInfo.width * scale;
                 final scaledHeight = _wallData!.imageInfo.height * scale;
 
@@ -127,19 +128,27 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                           ),
                         ),
                         ..._wallData!.shapes.map((shape) {
-                          final isSelected = widget.selectedLaneId != null
-                              ? widget.selectedLaneId == shape.laneId
-                              : routeProvider.selectedLaneIds.contains(
-                                  shape.laneId,
-                                );
-                          final isDimmed = widget.selectedLaneId != null
-                              ? !isSelected
-                              : hasActiveFilters &&
-                                    !matchingLaneIds.contains(shape.laneId);
+                          final selectionStrength =
+                              widget.laneSelectionStrengths?[shape.laneId] ??
+                                  (widget.selectedLaneId != null
+                                      ? (widget.selectedLaneId == shape.laneId
+                                          ? 1.0
+                                          : 0.0)
+                                      : (routeProvider.selectedLaneIds
+                                              .contains(shape.laneId)
+                                          ? 1.0
+                                          : 0.0));
+                          final isSelected = selectionStrength > 0.001;
+                          final isDimmed =
+                              widget.laneSelectionStrengths != null ||
+                                      widget.selectedLaneId != null
+                                  ? !isSelected
+                                  : hasActiveFilters &&
+                                      !matchingLaneIds.contains(shape.laneId);
                           return _buildLaneOverlay(
                             shape,
                             scale,
-                            isSelected,
+                            selectionStrength,
                             isDimmed,
                             () => _onLaneSelected(routeProvider, shape.laneId),
                           );
@@ -169,7 +178,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
   Widget _buildLaneOverlay(
     LaneShape shape,
     double scale,
-    bool isSelected,
+    double selectionStrength,
     bool isDimmed,
     VoidCallback onTap,
   ) {
@@ -188,7 +197,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
         child: CustomPaint(
           painter: LanePainter(
             points: scaledPoints,
-            isSelected: isSelected,
+            selectionStrength: selectionStrength,
             isDimmed: isDimmed,
             laneId: shape.laneId,
             offset: Offset(shape.x1 * scale, shape.y1 * scale),
@@ -211,14 +220,14 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
 
 class LanePainter extends CustomPainter {
   final List<Offset> points;
-  final bool isSelected;
+  final double selectionStrength;
   final bool isDimmed;
   final int laneId;
   final Offset offset;
 
   LanePainter({
     required this.points,
-    required this.isSelected,
+    required this.selectionStrength,
     required this.isDimmed,
     required this.laneId,
     required this.offset,
@@ -226,24 +235,29 @@ class LanePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final isSelected = selectionStrength > 0.001;
     final dimmedOpacity = isSelected ? 0.0 : 0.42;
 
     final paint = Paint()
       ..color = isSelected
-          ? const Color(0xFFFCB900).withValues(alpha: 0.42)
+          ? const Color(0xFFFCB900).withValues(
+              alpha: 0.42 * selectionStrength,
+            )
           : isDimmed
-          ? Colors.black.withValues(alpha: dimmedOpacity)
-          : Colors.transparent
+              ? Colors.black.withValues(alpha: dimmedOpacity)
+              : Colors.transparent
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
       ..color = isSelected
-          ? const Color(0xFFFCB900)
+          ? const Color(0xFFFCB900).withValues(
+              alpha: selectionStrength.clamp(0.2, 1.0),
+            )
           : isDimmed
-          ? Colors.grey.shade500.withValues(alpha: 0.8)
-          : Colors.white.withValues(alpha: 0.3)
+              ? Colors.grey.shade500.withValues(alpha: 0.8)
+              : Colors.white.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isSelected ? 2 : 1;
+      ..strokeWidth = isSelected ? 1 + selectionStrength : 1;
 
     // Adjust points relative to the positioned widget
     final adjustedPoints = points
@@ -266,7 +280,7 @@ class LanePainter extends CustomPainter {
       canvas.drawPath(path, borderPaint);
 
       // Draw lane number if selected or on hover
-      if (isSelected) {
+      if (selectionStrength >= 0.5) {
         final textPainter = TextPainter(
           text: TextSpan(
             text: laneId.toString(),
@@ -314,7 +328,7 @@ class LanePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(LanePainter oldDelegate) {
-    return oldDelegate.isSelected != isSelected ||
+    return oldDelegate.selectionStrength != selectionStrength ||
         oldDelegate.isDimmed != isDimmed ||
         oldDelegate.points != points;
   }

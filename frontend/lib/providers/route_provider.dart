@@ -122,7 +122,25 @@ class RouteProvider extends ChangeNotifier {
   }
 
   List<Route> routesForLane(int laneId) {
-    return List.unmodifiable(_routes.where((route) => route.lane == laneId));
+    final routes = applyRouteFilters(
+      routes: _routes,
+      selectedWallSections: _selectedWallSections,
+      selectedLaneIds: {laneId},
+      hasGradeRangeFilter: hasGradeRangeFilter,
+      selectedMinGradeIndex: _selectedMinGradeIndex,
+      selectedMaxGradeIndex: _selectedMaxGradeIndex,
+      availableGrades: availableGrades,
+      selectedRouteSetter: _selectedRouteSetter,
+      tickedFilter: _tickedFilter,
+      likedFilter: _likedFilter,
+      warnedFilter: _warnedFilter,
+      projectFilter: _projectFilter,
+      userTickedRouteIds: _userTickedRouteIds,
+      userLikedRouteIds: _userLikedRouteIds,
+      userProjectRouteIds: _userProjectRouteIds,
+    );
+    sortRoutesInPlace(routes, _selectedSort);
+    return List.unmodifiable(routes);
   }
 
   List<int> get laneIds => _lanes.map((lane) => lane.id).toList();
