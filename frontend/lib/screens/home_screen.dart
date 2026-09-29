@@ -202,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen>
               _FilterSummaryBar(
                 routeCount: routeProvider.routes.length,
                 singleLaneId: singleLaneId,
+                hasLaneImage: hasLaneImage,
                 hasActiveFilters: routeProvider.hasActiveFilters,
                 onClear: () {
                   _laneImageRevealController.value = 0;
@@ -310,12 +311,14 @@ class _HomeScreenState extends State<HomeScreen>
 class _FilterSummaryBar extends StatelessWidget {
   final int routeCount;
   final int? singleLaneId;
+  final bool hasLaneImage;
   final bool hasActiveFilters;
   final VoidCallback onClear;
 
   const _FilterSummaryBar({
     required this.routeCount,
     required this.singleLaneId,
+    required this.hasLaneImage,
     required this.hasActiveFilters,
     required this.onClear,
   });
@@ -365,6 +368,42 @@ class _FilterSummaryBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (singleLaneId != null && hasLaneImage) ...[
+                Tooltip(
+                  message: l10n.pullDownForLaneImage,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: colorScheme.outline.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 15,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          l10n.laneImageHint,
+                          style: TextStyle(
+                            color: colorScheme.onPrimaryContainer,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               if (isCompact)
                 IconButton(
                   onPressed: onClear,
