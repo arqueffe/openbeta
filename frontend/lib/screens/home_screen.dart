@@ -204,6 +204,12 @@ class _HomeScreenState extends State<HomeScreen>
                 singleLaneId: singleLaneId,
                 hasLaneImage: hasLaneImage,
                 hasActiveFilters: routeProvider.hasActiveFilters,
+                onShowLaneImage: hasLaneImage
+                    ? () => _laneImageRevealController.animateTo(
+                          1,
+                          curve: Curves.easeOutCubic,
+                        )
+                    : null,
                 onClear: () {
                   _laneImageRevealController.value = 0;
                   routeProvider.clearAllFilters();
@@ -313,6 +319,7 @@ class _FilterSummaryBar extends StatelessWidget {
   final int? singleLaneId;
   final bool hasLaneImage;
   final bool hasActiveFilters;
+  final VoidCallback? onShowLaneImage;
   final VoidCallback onClear;
 
   const _FilterSummaryBar({
@@ -320,6 +327,7 @@ class _FilterSummaryBar extends StatelessWidget {
     required this.singleLaneId,
     required this.hasLaneImage,
     required this.hasActiveFilters,
+    required this.onShowLaneImage,
     required this.onClear,
   });
 
@@ -337,13 +345,14 @@ class _FilterSummaryBar extends StatelessWidget {
             '${l10n.swipeForAdjacentLanes}';
 
     return Container(
-      width: double.infinity,
       constraints: const BoxConstraints(minHeight: 48),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer,
-        border: Border(
-          bottom: BorderSide(color: colorScheme.outline),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.45),
         ),
       ),
       child: LayoutBuilder(
@@ -371,34 +380,47 @@ class _FilterSummaryBar extends StatelessWidget {
               if (singleLaneId != null && hasLaneImage) ...[
                 Tooltip(
                   message: l10n.pullDownForLaneImage,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
+                  child: Material(
+                    color: colorScheme.surface.withValues(alpha: 0.78),
+                    shape: StadiumBorder(
+                      side: BorderSide(
                         color: colorScheme.outline.withValues(alpha: 0.5),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 15,
-                          color: colorScheme.onPrimaryContainer,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: onShowLaneImage,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
                         ),
-                        const SizedBox(width: 2),
-                        Text(
-                          l10n.laneImageHint,
-                          style: TextStyle(
-                            color: colorScheme.onPrimaryContainer,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 16,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              l10n.laneImageHint,
+                              style: TextStyle(
+                                color: colorScheme.onPrimaryContainer,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(
+                              Icons.photo_outlined,
+                              size: 14,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

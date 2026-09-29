@@ -934,7 +934,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Tirez vers le bas pour voir la photo du couloir';
 
   @override
-  String get laneImageHint => 'Photo';
+  String get laneImageHint => 'Voir la photo';
 
   @override
   String get unknown => 'Inconnu';

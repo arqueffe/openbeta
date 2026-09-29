@@ -373,7 +373,7 @@
   "adjustFiltersOrAddRoute": "Try adjusting your filters or add a new route",
   "swipeForAdjacentLanes": "Swipe for adjacent lanes",
   "pullDownForLaneImage": "Pull down to view the lane photo",
-  "laneImageHint": "Photo",
+  "laneImageHint": "View photo",
   "unknown": "Unknown",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},

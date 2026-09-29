@@ -1829,7 +1829,7 @@ abstract class AppLocalizations {
   /// No description provided for @laneImageHint.
   ///
   /// In en, this message translates to:
-  /// **'Photo'**
+  /// **'View photo'**
   String get laneImageHint;
 
   /// No description provided for @unknown.

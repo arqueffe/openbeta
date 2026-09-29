@@ -921,7 +921,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pullDownForLaneImage => 'Pull down to view the lane photo';
 
   @override
-  String get laneImageHint => 'Photo';
+  String get laneImageHint => 'View photo';
 
   @override
   String get unknown => 'Unknown';
