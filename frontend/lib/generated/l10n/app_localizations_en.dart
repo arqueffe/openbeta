@@ -915,6 +915,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get swipeToChangeLane => 'Swipe to change lane';
 
   @override
+  String get exploreLanes => 'Explore';
+
+  @override
+  String get selectLanes => 'Select lanes';
+
+  @override
+  String get tapLanesToFilter =>
+      'Tap lanes to add or remove them from the route filter';
+
+  @override
   String get unknown => 'Unknown';
 
   @override

@@ -20,8 +20,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+enum _WallInteractionMode {
+  explore,
+  select,
+}
+
 class _HomeScreenState extends State<HomeScreen> {
   bool _initialLaneOpened = false;
+  _WallInteractionMode _wallMode = _WallInteractionMode.explore;
 
   @override
   void initState() {
@@ -130,8 +136,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Column(
             children: [
+              _WallModeSwitcher(
+                mode: _wallMode,
+                selectedLaneCount: routeProvider.selectedLaneIds.length,
+                onChanged: (mode) {
+                  setState(() => _wallMode = mode);
+                },
+                onClear: routeProvider.selectedLaneIds.isEmpty
+                    ? null
+                    : () => routeProvider.setLaneIdsFilter(<int>{}),
+              ),
+
               // Interactive Climbing Wall
-              InteractiveClimbingWall(onLaneSelected: _openLane),
+              InteractiveClimbingWall(
+                onLaneSelected: (laneId) {
+                  if (_wallMode == _WallInteractionMode.select) {
+                    routeProvider.toggleLaneFilter(laneId);
+                  } else {
+                    _openLane(laneId);
+                  }
+                },
+              ),
 
               // Keep the spacer stable when there are no filters, but allow
               // the active filter bar to grow on narrow screens.
@@ -266,6 +291,113 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _WallModeSwitcher extends StatelessWidget {
+  final _WallInteractionMode mode;
+  final int selectedLaneCount;
+  final ValueChanged<_WallInteractionMode> onChanged;
+  final VoidCallback? onClear;
+
+  const _WallModeSwitcher({
+    required this.mode,
+    required this.selectedLaneCount,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSelecting = mode == _WallInteractionMode.select;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isSelecting
+            ? colorScheme.primaryContainer
+            : colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelecting
+              ? colorScheme.primary.withValues(alpha: 0.45)
+              : colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SegmentedButton<_WallInteractionMode>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: _WallInteractionMode.explore,
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: Text(l10n.exploreLanes),
+                    ),
+                    ButtonSegment(
+                      value: _WallInteractionMode.select,
+                      icon: const Icon(Icons.library_add_check, size: 18),
+                      label: Text(l10n.selectLanes),
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (selection) {
+                    onChanged(selection.first);
+                  },
+                ),
+              ),
+            ],
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            child: isSelecting
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          size: 16,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            l10n.tapLanesToFilter,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                        if (selectedLaneCount > 0)
+                          TextButton(
+                                onPressed: onClear,
+                                child: Text(
+                                  '$selectedLaneCount · ${l10n.clearAll}',
+                                ),
+                          ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
