@@ -109,7 +109,6 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                     widthScale < heightScale ? widthScale : heightScale;
                 final scaledWidth = _wallData!.imageInfo.width * scale;
                 final scaledHeight = _wallData!.imageInfo.height * scale;
-                final transition = _laneTransition();
 
                 return Center(
                   child: SizedBox(
@@ -158,19 +157,6 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                             () => _onLaneSelected(routeProvider, shape.laneId),
                           );
                         }),
-                        if (transition != null)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: CustomPaint(
-                                painter: LaneRailTransitionPainter(
-                                  from: transition.from,
-                                  to: transition.to,
-                                  progress: transition.progress,
-                                  scale: scale,
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -190,40 +176,6 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
           child: wall,
         );
       },
-    );
-  }
-
-  _LaneTransition? _laneTransition() {
-    final strengths = widget.laneSelectionStrengths;
-    if (strengths == null || _wallData == null) {
-      return null;
-    }
-
-    final activeEntries =
-        strengths.entries.where((entry) => entry.value > 0.001).toList();
-    if (activeEntries.length != 2) {
-      return null;
-    }
-
-    LaneShape? shapeFor(int laneId) {
-      for (final shape in _wallData!.shapes) {
-        if (shape.laneId == laneId) {
-          return shape;
-        }
-      }
-      return null;
-    }
-
-    final from = shapeFor(activeEntries.first.key);
-    final to = shapeFor(activeEntries.last.key);
-    if (from == null || to == null) {
-      return null;
-    }
-
-    return _LaneTransition(
-      from: from,
-      to: to,
-      progress: activeEntries.last.value.clamp(0.0, 1.0),
     );
   }
 
@@ -267,121 +219,6 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
       return;
     }
     routeProvider.toggleLaneFilter(laneId);
-  }
-}
-
-class _LaneTransition {
-  final LaneShape from;
-  final LaneShape to;
-  final double progress;
-
-  const _LaneTransition({
-    required this.from,
-    required this.to,
-    required this.progress,
-  });
-}
-
-class LaneRailTransitionPainter extends CustomPainter {
-  final LaneShape from;
-  final LaneShape to;
-  final double progress;
-  final double scale;
-
-  LaneRailTransitionPainter({
-    required this.from,
-    required this.to,
-    required this.progress,
-    required this.scale,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final start = _shapeCenter(from);
-    final end = _shapeCenter(to);
-    final distance = (end - start).distance;
-    final control = Offset(
-      (start.dx + end.dx) / 2,
-      (start.dy + end.dy) / 2 - (18 + distance * 0.08),
-    );
-    final rail = Path()
-      ..moveTo(start.dx, start.dy)
-      ..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
-
-    canvas
-      ..drawPath(
-        rail,
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.28)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-      )
-      ..drawPath(
-        rail,
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.62)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round,
-      );
-
-    final metric = rail.computeMetrics().first;
-    canvas.drawPath(
-      metric.extractPath(0, metric.length * progress),
-      Paint()
-        ..color = const Color(0xFFFCB900)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round,
-    );
-
-    final inverseProgress = 1 - progress;
-    final marker = Offset(
-      inverseProgress * inverseProgress * start.dx +
-          2 * inverseProgress * progress * control.dx +
-          progress * progress * end.dx,
-      inverseProgress * inverseProgress * start.dy +
-          2 * inverseProgress * progress * control.dy +
-          progress * progress * end.dy,
-    );
-    canvas
-      ..drawCircle(
-        marker,
-        12,
-        Paint()
-          ..color = const Color(0xFFFCB900).withValues(alpha: 0.28)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      )
-      ..drawCircle(marker, 7, Paint()..color = const Color(0xFFFCB900))
-      ..drawCircle(
-        marker,
-        3,
-        Paint()..color = Colors.white.withValues(alpha: 0.92),
-      );
-  }
-
-  Offset _shapeCenter(LaneShape shape) {
-    if (shape.points.isEmpty) {
-      return Offset(
-        (shape.x1 + shape.x2) * scale / 2,
-        (shape.y1 + shape.y2) * scale / 2,
-      );
-    }
-    final total = shape.points.fold<Offset>(
-      Offset.zero,
-      (sum, point) => sum + Offset(point[0] * scale, point[1] * scale),
-    );
-    return total / shape.points.length.toDouble();
-  }
-
-  @override
-  bool shouldRepaint(covariant LaneRailTransitionPainter oldDelegate) {
-    return oldDelegate.from != from ||
-        oldDelegate.to != to ||
-        oldDelegate.progress != progress ||
-        oldDelegate.scale != scale;
   }
 }
 
