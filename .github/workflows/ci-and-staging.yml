@@ -82,10 +82,20 @@ jobs:
         run: |
           set -euo pipefail
           install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
-          printf '%s' "$SFTP_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/deploy-ssh/id_ed25519"
+          if [[ -z "$SFTP_PRIVATE_KEY_B64" ]]; then
+            echo "::error::Missing staging environment secret STAGING_SFTP_PRIVATE_KEY_B64."
+            exit 1
+          fi
+          if ! printf '%s' "$SFTP_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/deploy-ssh/id_ed25519"; then
+            echo "::error::STAGING_SFTP_PRIVATE_KEY_B64 is not valid single-line base64."
+            exit 1
+          fi
           printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/deploy-ssh/id_ed25519" "$RUNNER_TEMP/deploy-ssh/known_hosts"
-          ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null
+          if ! ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null; then
+            echo "::error::Decoded staging key is not a valid unencrypted OpenSSH private key. Base64-encode the private key file (not its .pub file or your FTP password)."
+            exit 1
+          fi
           ssh-keygen -lf "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null
           sftp \
             -b - \
