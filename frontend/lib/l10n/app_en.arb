@@ -371,6 +371,7 @@
   "clearAll": "Clear All",
   "noRoutesFound": "No routes found",
   "adjustFiltersOrAddRoute": "Try adjusting your filters or add a new route",
+  "swipeForAdjacentLanes": "Swipe for adjacent lanes",
   "unknown": "Unknown",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},

@@ -5,7 +5,20 @@ import '../providers/route_provider.dart';
 import '../services/climbing_wall_service.dart';
 
 class InteractiveClimbingWall extends StatefulWidget {
-  const InteractiveClimbingWall({super.key});
+  final ValueChanged<int>? onLaneSelected;
+  final int? selectedLaneId;
+  final Map<int, double>? laneSelectionStrengths;
+  final double? height;
+  final bool showCard;
+
+  const InteractiveClimbingWall({
+    super.key,
+    this.onLaneSelected,
+    this.selectedLaneId,
+    this.laneSelectionStrengths,
+    this.height,
+    this.showCard = true,
+  });
 
   @override
   State<InteractiveClimbingWall> createState() =>
@@ -47,9 +60,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(20),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
@@ -72,9 +83,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(20),
-          child: Center(
-            child: Text('No wall data available'),
-          ),
+          child: Center(child: Text('No wall data available')),
         ),
       );
     }
@@ -86,69 +95,85 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
             ? routeProvider.routes.map((route) => route.lane).toSet()
             : <int>{};
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height *
-                  0.3, // Max 30% of screen height
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Calculate scale to fit both width and height, maintaining aspect ratio
-                  final widthScale =
-                      constraints.maxWidth / _wallData!.imageInfo.width;
-                  final heightScale =
-                      constraints.maxHeight / _wallData!.imageInfo.height;
+        final wall = Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            height: widget.height ?? MediaQuery.of(context).size.height * 0.3,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final widthScale =
+                    constraints.maxWidth / _wallData!.imageInfo.width;
+                final heightScale =
+                    constraints.maxHeight / _wallData!.imageInfo.height;
+                final scale =
+                    widthScale < heightScale ? widthScale : heightScale;
+                final scaledWidth = _wallData!.imageInfo.width * scale;
+                final scaledHeight = _wallData!.imageInfo.height * scale;
 
-                  // Use the smaller scale to ensure the image fits completely
-                  final scale =
-                      widthScale < heightScale ? widthScale : heightScale;
-
-                  final scaledWidth = _wallData!.imageInfo.width * scale;
-                  final scaledHeight = _wallData!.imageInfo.height * scale;
-
-                  return Center(
-                    child: SizedBox(
-                      width: scaledWidth,
-                      height: scaledHeight,
-                      child: Stack(
-                        children: [
-                          // Background image
-                          Container(
-                            width: scaledWidth,
-                            height: scaledHeight,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              image: const DecorationImage(
-                                image: AssetImage('assets/models/crux.png'),
-                                fit: BoxFit.contain, // Maintain aspect ratio
-                              ),
+                return Center(
+                  child: SizedBox(
+                    width: scaledWidth,
+                    height: scaledHeight,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: scaledWidth,
+                          height: scaledHeight,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: const DecorationImage(
+                              image: AssetImage('assets/models/crux.png'),
+                              fit: BoxFit.contain,
                             ),
                           ),
-                          // Interactive lane overlays
-                          ..._wallData!.shapes.map((shape) {
-                            final isSelected =
-                              routeProvider.selectedLaneIds.contains(shape.laneId);
-                            final isDimmed =
-                                hasActiveFilters &&
-                                    !matchingLaneIds.contains(shape.laneId);
-                            return _buildLaneOverlay(
-                              shape,
-                              scale, // Use the calculated scale
-                              isSelected,
-                              isDimmed,
-                              () =>
-                                  _onLaneSelected(routeProvider, shape.laneId),
-                            );
-                          }).toList(),
-                        ],
-                      ),
+                        ),
+                        ..._wallData!.shapes.map((shape) {
+                          final selectionStrength =
+                              widget.laneSelectionStrengths?[shape.laneId] ??
+                                  (widget.selectedLaneId != null
+                                      ? (widget.selectedLaneId == shape.laneId
+                                          ? 1.0
+                                          : 0.0)
+                                      : (routeProvider.selectedLaneIds
+                                              .contains(shape.laneId)
+                                          ? 1.0
+                                          : 0.0));
+                          final isSelected = selectionStrength > 0.001;
+                          final isDimmed =
+                              widget.laneSelectionStrengths != null ||
+                                      widget.selectedLaneId != null
+                                  ? !isSelected
+                                  : hasActiveFilters &&
+                                      !matchingLaneIds.contains(shape.laneId);
+                          final dimStrength =
+                              widget.laneSelectionStrengths != null
+                                  ? 1 - selectionStrength
+                                  : (isDimmed ? 1.0 : 0.0);
+                          return _buildLaneOverlay(
+                            shape,
+                            scale,
+                            selectionStrength,
+                            dimStrength,
+                            () => _onLaneSelected(routeProvider, shape.laneId),
+                          );
+                        }),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
+        );
+
+        if (!widget.showCard) {
+          return wall;
+        }
+
+        return Card(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          clipBehavior: Clip.antiAlias,
+          child: wall,
         );
       },
     );
@@ -157,8 +182,8 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
   Widget _buildLaneOverlay(
     LaneShape shape,
     double scale,
-    bool isSelected,
-    bool isDimmed,
+    double selectionStrength,
+    double dimStrength,
     VoidCallback onTap,
   ) {
     // Convert polygon points to scaled coordinates
@@ -176,8 +201,8 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
         child: CustomPaint(
           painter: LanePainter(
             points: scaledPoints,
-            isSelected: isSelected,
-            isDimmed: isDimmed,
+            selectionStrength: selectionStrength,
+            dimStrength: dimStrength,
             laneId: shape.laneId,
             offset: Offset(shape.x1 * scale, shape.y1 * scale),
           ),
@@ -188,45 +213,33 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
   }
 
   void _onLaneSelected(RouteProvider routeProvider, int laneId) {
+    final callback = widget.onLaneSelected;
+    if (callback != null) {
+      callback(laneId);
+      return;
+    }
     routeProvider.toggleLaneFilter(laneId);
   }
 }
 
 class LanePainter extends CustomPainter {
   final List<Offset> points;
-  final bool isSelected;
-  final bool isDimmed;
+  final double selectionStrength;
+  final double dimStrength;
   final int laneId;
   final Offset offset;
 
   LanePainter({
     required this.points,
-    required this.isSelected,
-    required this.isDimmed,
+    required this.selectionStrength,
+    required this.dimStrength,
     required this.laneId,
     required this.offset,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final dimmedOpacity = isSelected ? 0.0 : 0.42;
-
-    final paint = Paint()
-      ..color = isSelected
-          ? Colors.blue.withOpacity(0.4)
-          : isDimmed
-              ? Colors.black.withOpacity(dimmedOpacity)
-              : Colors.transparent
-      ..style = PaintingStyle.fill;
-
-    final borderPaint = Paint()
-      ..color = isSelected
-          ? Colors.blue
-          : isDimmed
-              ? Colors.grey.shade500.withOpacity(0.8)
-              : Colors.white.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = isSelected ? 2 : 1;
+    final isSelected = selectionStrength > 0.001;
 
     // Adjust points relative to the positioned widget
     final adjustedPoints = points
@@ -242,14 +255,52 @@ class LanePainter extends CustomPainter {
       }
       path.close();
 
-      // Fill the polygon
-      canvas.drawPath(path, paint);
+      if (dimStrength > 0.001) {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Colors.black.withValues(
+              alpha: 0.42 * dimStrength.clamp(0.0, 1.0),
+            )
+            ..style = PaintingStyle.fill,
+        );
+      }
 
-      // Draw the border
-      canvas.drawPath(path, borderPaint);
+      if (isSelected) {
+        canvas
+          ..drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFFFCB900).withValues(
+                alpha: 0.42 * selectionStrength,
+              )
+              ..style = PaintingStyle.fill,
+          )
+          ..drawPath(
+            path,
+            Paint()
+              ..color = const Color(0xFFFCB900).withValues(
+                alpha: selectionStrength.clamp(0.2, 1.0),
+              )
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1 + selectionStrength,
+          );
+      } else {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Color.lerp(
+              Colors.white.withValues(alpha: 0.3),
+              Colors.grey.shade500.withValues(alpha: 0.8),
+              dimStrength.clamp(0.0, 1.0),
+            )!
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
 
       // Draw lane number if selected or on hover
-      if (isSelected) {
+      if (selectionStrength >= 0.5) {
         final textPainter = TextPainter(
           text: TextSpan(
             text: laneId.toString(),
@@ -297,8 +348,8 @@ class LanePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(LanePainter oldDelegate) {
-    return oldDelegate.isSelected != isSelected ||
-        oldDelegate.isDimmed != isDimmed ||
+    return oldDelegate.selectionStrength != selectionStrength ||
+        oldDelegate.dimStrength != dimStrength ||
         oldDelegate.points != points;
   }
 }

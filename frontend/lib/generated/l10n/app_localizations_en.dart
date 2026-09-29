@@ -915,6 +915,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Try adjusting your filters or add a new route';
 
   @override
+  String get swipeForAdjacentLanes => 'Swipe for adjacent lanes';
+
+  @override
   String get unknown => 'Unknown';
 
   @override

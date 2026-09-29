@@ -1814,6 +1814,12 @@ abstract class AppLocalizations {
   /// **'Try adjusting your filters or add a new route'**
   String get adjustFiltersOrAddRoute;
 
+  /// No description provided for @swipeForAdjacentLanes.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe for adjacent lanes'**
+  String get swipeForAdjacentLanes;
+
   /// No description provided for @unknown.
   ///
   /// In en, this message translates to:

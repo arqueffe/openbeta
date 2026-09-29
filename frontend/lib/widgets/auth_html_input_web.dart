@@ -49,6 +49,7 @@ class _AuthHtmlInputState extends State<AuthHtmlInput> {
   late final String _viewType;
   late final web.HTMLDivElement _container;
   late final web.HTMLInputElement _input;
+  var _domBuilt = false;
 
   @override
   void initState() {
@@ -56,12 +57,20 @@ class _AuthHtmlInputState extends State<AuthHtmlInput> {
     _viewType = 'auth-html-input-${_viewIdSeed++}';
     _input = web.HTMLInputElement();
     _container = web.HTMLDivElement();
-    _buildDom();
     widget.controller.addListener(_syncFromController);
     ui_web.platformViewRegistry.registerViewFactory(
       _viewType,
       (int _) => _container,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_domBuilt) {
+      _domBuilt = true;
+      _buildDom();
+    }
   }
 
   @override
