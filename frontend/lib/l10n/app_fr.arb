@@ -294,6 +294,8 @@
   "noRoutesFound": "Aucune voie trouvée",
   "adjustFiltersOrAddRoute": "Essayez d'ajuster vos filtres ou d'ajouter une nouvelle voie",
   "swipeForAdjacentLanes": "Balayez vers les couloirs voisins",
+  "pullDownForLaneImage": "Tirez vers le bas pour voir la photo du couloir",
+  "laneImageHint": "Voir la photo",
   "unknown": "Inconnu",
   
   "@_ROUTE_INTERACTIONS_EXTENDED": {},

@@ -930,6 +930,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get swipeForAdjacentLanes => 'Balayez vers les couloirs voisins';
 
   @override
+  String get pullDownForLaneImage =>
+      'Tirez vers le bas pour voir la photo du couloir';
+
+  @override
+  String get laneImageHint => 'Voir la photo';
+
+  @override
   String get unknown => 'Inconnu';
 
   @override

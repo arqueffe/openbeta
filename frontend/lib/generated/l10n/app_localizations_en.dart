@@ -918,6 +918,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get swipeForAdjacentLanes => 'Swipe for adjacent lanes';
 
   @override
+  String get pullDownForLaneImage => 'Pull down to view the lane photo';
+
+  @override
+  String get laneImageHint => 'View photo';
+
+  @override
   String get unknown => 'Unknown';
 
   @override

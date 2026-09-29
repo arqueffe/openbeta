@@ -1820,6 +1820,18 @@ abstract class AppLocalizations {
   /// **'Swipe for adjacent lanes'**
   String get swipeForAdjacentLanes;
 
+  /// No description provided for @pullDownForLaneImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull down to view the lane photo'**
+  String get pullDownForLaneImage;
+
+  /// No description provided for @laneImageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'View photo'**
+  String get laneImageHint;
+
   /// No description provided for @unknown.
   ///
   /// In en, this message translates to:
