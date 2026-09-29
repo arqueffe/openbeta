@@ -22,15 +22,27 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   Map<int, double> _wallLaneStrengths = const {};
+  late final AnimationController _laneImageRevealController;
 
   @override
   void initState() {
     super.initState();
+    _laneImageRevealController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
     });
+  }
+
+  @override
+  void dispose() {
+    _laneImageRevealController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -52,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleLane(RouteProvider routeProvider, int laneId) {
+    _laneImageRevealController.value = 0;
     routeProvider.toggleLaneFilter(laneId);
     _syncLaneUrl(routeProvider.selectedLaneIds);
     final selectedLaneIds = routeProvider.selectedLaneIds;
@@ -74,8 +87,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _selectCarouselLane(RouteProvider routeProvider, int laneId) {
+    _laneImageRevealController.value = 0;
     routeProvider.setLaneIdsFilter({laneId});
     replaceLaneUrl(laneId);
+  }
+
+  void _updateLaneImageReveal(double delta) {
+    _laneImageRevealController.value =
+        (_laneImageRevealController.value + delta).clamp(0.0, 1.0);
+  }
+
+  void _settleLaneImageReveal() {
+    final showImage = _laneImageRevealController.value > 0.18;
+    _laneImageRevealController.animateTo(
+      showImage ? 1 : 0,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -158,8 +185,15 @@ class _HomeScreenState extends State<HomeScreen> {
               : (_wallLaneStrengths.containsKey(singleLaneId)
                   ? _wallLaneStrengths
                   : {singleLaneId: 1.0});
+          final singleLaneRoutes = singleLaneId == null
+              ? const <models.Route>[]
+              : routeProvider.routesForLane(singleLaneId);
+          final laneImage = singleLaneRoutes.isEmpty
+              ? null
+              : singleLaneRoutes.first.image?.trim();
+          final hasLaneImage = laneImage != null && laneImage.isNotEmpty;
 
-          return Column(
+          final content = Column(
             children: [
               InteractiveClimbingWall(
                 laneSelectionStrengths: wallLaneStrengths,
@@ -170,6 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 singleLaneId: singleLaneId,
                 hasActiveFilters: routeProvider.hasActiveFilters,
                 onClear: () {
+                  _laneImageRevealController.value = 0;
                   routeProvider.clearAllFilters();
                   replaceLaneUrl(null);
                   setState(() => _wallLaneStrengths = const {});
@@ -188,9 +223,83 @@ class _HomeScreenState extends State<HomeScreen> {
                         onLaneChanged: (laneId) =>
                             _selectCarouselLane(routeProvider, laneId),
                         onProgress: _updateWallLaneStrengths,
+                        onImagePull: _updateLaneImageReveal,
+                        onImagePullEnd: _settleLaneImageReveal,
                       ),
               ),
             ],
+          );
+
+          if (!hasLaneImage) {
+            return content;
+          }
+
+          return AnimatedBuilder(
+            animation: _laneImageRevealController,
+            child: content,
+            builder: (context, child) {
+              final progress = _laneImageRevealController.value;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        laneImage,
+                        fit: BoxFit.cover,
+                        webHtmlElementStrategy: WebHtmlElementStrategy.never,
+                        errorBuilder: (_, __, ___) =>
+                            const SizedBox.shrink(),
+                      ),
+                      ColoredBox(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surface
+                            .withValues(alpha: 0.68 - (progress * 0.54)),
+                      ),
+                      Transform.translate(
+                        offset: Offset(0, constraints.maxHeight * progress),
+                        child: child,
+                      ),
+                      if (progress > 0.001)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onVerticalDragUpdate: (details) {
+                            _updateLaneImageReveal(
+                              details.delta.dy / constraints.maxHeight,
+                            );
+                          },
+                          onVerticalDragEnd: (_) {
+                            _laneImageRevealController.animateTo(
+                              _laneImageRevealController.value < 0.82 ? 0 : 1,
+                              curve: Curves.easeOutCubic,
+                            );
+                          },
+                          child: const Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 18),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0x59000000),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.keyboard_arrow_up,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
           );
         },
       ),
@@ -290,6 +399,8 @@ class _LaneRouteCarousel extends StatefulWidget {
   final RouteProvider routeProvider;
   final ValueChanged<int> onLaneChanged;
   final ValueChanged<Map<int, double>> onProgress;
+  final ValueChanged<double> onImagePull;
+  final VoidCallback onImagePullEnd;
 
   const _LaneRouteCarousel({
     required this.lanes,
@@ -297,6 +408,8 @@ class _LaneRouteCarousel extends StatefulWidget {
     required this.routeProvider,
     required this.onLaneChanged,
     required this.onProgress,
+    required this.onImagePull,
+    required this.onImagePullEnd,
   });
 
   @override
@@ -383,163 +496,57 @@ class _LaneRouteCarouselState extends State<_LaneRouteCarousel> {
         return _LaneRoutePage(
           routes: routes,
           routeProvider: widget.routeProvider,
+          onImagePull: widget.onImagePull,
+          onImagePullEnd: widget.onImagePullEnd,
         );
       },
     );
   }
 }
 
-class _LaneRoutePage extends StatefulWidget {
+class _LaneRoutePage extends StatelessWidget {
   final List<models.Route> routes;
   final RouteProvider routeProvider;
+  final ValueChanged<double> onImagePull;
+  final VoidCallback onImagePullEnd;
 
   const _LaneRoutePage({
     required this.routes,
     required this.routeProvider,
+    required this.onImagePull,
+    required this.onImagePullEnd,
   });
 
   @override
-  State<_LaneRoutePage> createState() => _LaneRoutePageState();
-}
-
-class _LaneRoutePageState extends State<_LaneRoutePage> {
-  final ScrollController _scrollController = ScrollController();
-  double _viewportHeight = 0;
-  bool _hasInitialPosition = false;
-  bool _isPositioning = false;
-
-  void _positionAtRoutes(double viewportHeight) {
-    if (_hasInitialPosition || _isPositioning) {
-      return;
-    }
-
-    _isPositioning = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isPositioning = false;
-      if (!mounted || !_scrollController.hasClients) {
-        return;
-      }
-
-      _scrollController.jumpTo(
-        viewportHeight.clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        ),
-      );
-      setState(() => _hasInitialPosition = true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final routes = widget.routes;
+    final routes = this.routes;
     final image = routes.isEmpty ? null : routes.first.image?.trim();
     final hasBackground = image != null && image.isNotEmpty;
 
-    if (!hasBackground) {
-      return _RouteResultsList(
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (hasBackground &&
+            notification is OverscrollNotification &&
+            notification.overscroll < 0) {
+          onImagePull(
+            -notification.overscroll /
+                notification.metrics.viewportDimension,
+          );
+          return true;
+        }
+        if (hasBackground && notification is ScrollEndNotification) {
+          onImagePullEnd();
+        }
+        return false;
+      },
+      child: _RouteResultsList(
         routes: routes,
-        routeProvider: widget.routeProvider,
-      );
-    }
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.network(
-            image,
-            fit: BoxFit.cover,
-            webHtmlElementStrategy: WebHtmlElementStrategy.never,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
+        routeProvider: routeProvider,
+        enableRefresh: false,
+        physics: const ClampingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
         ),
-        Positioned.fill(
-          child: AnimatedBuilder(
-            animation: _scrollController,
-            builder: (context, child) {
-              final revealProgress =
-                  _scrollController.hasClients && _viewportHeight > 0
-                      ? (1 -
-                              (_scrollController.offset / _viewportHeight)
-                                  .clamp(0.0, 1.0))
-                          .toDouble()
-                      : 0.0;
-              final overlayOpacity = 0.68 - (revealProgress * 0.54);
-              return ColoredBox(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surface
-                    .withValues(alpha: overlayOpacity),
-              );
-            },
-          ),
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            _viewportHeight = constraints.maxHeight;
-            _positionAtRoutes(_viewportHeight);
-
-            return AnimatedOpacity(
-              opacity: _hasInitialPosition ? 1 : 0,
-              duration: const Duration(milliseconds: 180),
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: _viewportHeight,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 18),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.all(6),
-                              child: Icon(
-                                Icons.keyboard_arrow_up,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    sliver: SliverList.builder(
-                      itemCount: routes.length,
-                      itemBuilder: (context, index) {
-                        return _RouteResultCard(
-                          route: routes[index],
-                          routeProvider: widget.routeProvider,
-                        );
-                      },
-                    ),
-                  ),
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: SizedBox.shrink(),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
+      ),
     );
   }
 }
@@ -573,10 +580,14 @@ class _RouteResultCard extends StatelessWidget {
 class _RouteResultsList extends StatelessWidget {
   final List<models.Route> routes;
   final RouteProvider routeProvider;
+  final bool enableRefresh;
+  final ScrollPhysics? physics;
 
   const _RouteResultsList({
     required this.routes,
     required this.routeProvider,
+    this.enableRefresh = true,
+    this.physics,
   });
 
   @override
@@ -603,19 +614,26 @@ class _RouteResultsList extends StatelessWidget {
       );
     }
 
+    final list = ListView.builder(
+      key: PageStorageKey('lane-routes-${routes.first.lane}'),
+      padding: const EdgeInsets.all(16),
+      physics: physics,
+      itemCount: routes.length,
+      itemBuilder: (context, index) {
+        return _RouteResultCard(
+          route: routes[index],
+          routeProvider: routeProvider,
+        );
+      },
+    );
+
+    if (!enableRefresh) {
+      return list;
+    }
+
     return RefreshIndicator(
       onRefresh: () => routeProvider.loadRoutes(),
-      child: ListView.builder(
-        key: PageStorageKey('lane-routes-${routes.first.lane}'),
-        padding: const EdgeInsets.all(16),
-        itemCount: routes.length,
-        itemBuilder: (context, index) {
-          return _RouteResultCard(
-            route: routes[index],
-            routeProvider: routeProvider,
-          );
-        },
-      ),
+      child: list,
     );
   }
 }
