@@ -1,0 +1,128 @@
+name: Production deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: What to deploy to production
+        required: true
+        type: choice
+        options:
+          - frontend
+          - backend
+          - both
+        default: both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.38.10
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze Flutter code
+        working-directory: frontend
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: frontend
+        run: flutter test
+
+      - name: Build production web app
+        if: inputs.components != 'backend'
+        working-directory: frontend
+        run: flutter build web --release --base-href /climb/
+
+      - name: Verify production base path
+        if: inputs.components != 'backend'
+        working-directory: frontend
+        run: grep -Fq '<base href="/climb/">' build/web/index.html
+
+      - name: Check WordPress plugin PHP syntax
+        run: find backend/wp-content/plugins/crux-climbing-gym -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Upload production build
+        if: inputs.components != 'backend'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flutter-web-production
+          path: frontend/build/web/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-production:
+    if: github.ref == 'refs/heads/master'
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Check out plugin source
+        if: inputs.components == 'backend' || inputs.components == 'both'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download validated production build
+        if: inputs.components != 'backend'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: flutter-web-production
+          path: build/web
+
+      - name: Upload selected components over SFTP
+        env:
+          DEPLOY_COMPONENTS: ${{ inputs.components }}
+          SFTP_HOST: ${{ secrets.PROD_SFTP_HOST }}
+          SFTP_USERNAME: ${{ secrets.PROD_SFTP_USERNAME }}
+          SFTP_PRIVATE_KEY: ${{ secrets.PROD_SFTP_PRIVATE_KEY }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.PROD_SFTP_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
+          printf '%s\n' "$SFTP_PRIVATE_KEY" > "$RUNNER_TEMP/deploy-ssh/id_ed25519"
+          printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/deploy-ssh/id_ed25519" "$RUNNER_TEMP/deploy-ssh/known_hosts"
+          ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null
+          ssh-keygen -lf "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null
+
+          sftp_args=(
+            -b -
+            -i "$RUNNER_TEMP/deploy-ssh/id_ed25519"
+            -o IdentitiesOnly=yes
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=$RUNNER_TEMP/deploy-ssh/known_hosts"
+            -P 22
+            "$SFTP_USERNAME@$SFTP_HOST"
+          )
+
+          if [[ "$DEPLOY_COMPONENTS" == frontend || "$DEPLOY_COMPONENTS" == both ]]; then
+            sftp "${sftp_args[@]}" <<'SFTP_FRONTEND'
+          cd /home/cruxclubxi/cruxclub.fr/climb
+          put -r build/web/* .
+          SFTP_FRONTEND
+          fi
+
+          if [[ "$DEPLOY_COMPONENTS" == backend || "$DEPLOY_COMPONENTS" == both ]]; then
+            sftp "${sftp_args[@]}" <<'SFTP_PLUGIN'
+          cd /home/cruxclubxi/cruxclub.fr/wp-content/plugins/crux-climbing-gym
+          put -r backend/wp-content/plugins/crux-climbing-gym/* .
+          SFTP_PLUGIN
+          fi

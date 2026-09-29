@@ -33,7 +33,7 @@ A comprehensive climbing gym management platform featuring a Flutter mobile appl
 ### Backend Setup (WordPress)
 ```bash
 # Install WordPress and copy plugin
-cp -r backend/wp-content/plugins/crux-climbing-gym /path/to/wordpress/htdocs/crux-climbing-gym/wp-content/plugins/
+cp -r backend/wp-content/plugins/crux-climbing-gym /home/cruxclubxi/cruxclub.fr/wp-content/plugins/
 
 # Activate plugin in WordPress admin
 # Plugin automatically creates database schema and sample data
@@ -49,12 +49,78 @@ flutter pub get
 # Generate localization files
 flutter pub run intl_utils:generate
 
-# Build the web application
-flutter build web --base-href "/crux-climbing-gym/flutter-app/"
+# Build the web application for production
+flutter build web --release --base-href "/climb/"
 
-# Run the application
-cp -r build/web /path/to/wordpress/htdocs/crux-climbing-gym/flutter-app
+# Build the web application for staging
+flutter build web --release --base-href "/climb_test/"
+
+# Deploy build/web to the corresponding remote directory with SFTP
+# Production: /home/cruxclubxi/cruxclub.fr/climb/
+# Staging:    /home/cruxclubxi/cruxclub.fr/climb_test/
 ```
+
+### Local Development
+
+The repository pins the Flutter SDK with `mise`. From the repository root:
+
+```bash
+mise install
+cd frontend
+mise exec -- flutter pub get
+mise exec -- flutter run -d chrome
+```
+
+The VS Code launch configuration includes **Flutter Web (Chrome)** and tasks for
+dependency installation, analysis, tests, and web builds. The WordPress plugin
+in `backend/` is loaded by a separate WordPress installation; this repository
+does not include a WordPress runtime or database.
+
+### Automated Deployment
+
+GitHub Actions runs Flutter analysis/tests/builds and PHP syntax checks on pull
+requests to `master`; pull requests never deploy. Merges to `master` deploy the
+Flutter web app to `/home/cruxclubxi/cruxclub.fr/climb_test/`. There is no
+WordPress staging installation, so plugin changes are checked but not
+automatically deployed.
+
+Production deployment is manual from **Actions → Production deploy**, only for
+the `master` branch. Select `frontend`, `backend`, or `both`. The backend
+selection uploads the WordPress plugin. Configure a
+`production` GitHub Environment with required reviewers before using the
+workflow; approval is required before any production upload. The production
+frontend path is `/home/cruxclubxi/cruxclub.fr/climb/`, and the plugin path is
+`/home/cruxclubxi/cruxclub.fr/wp-content/plugins/crux-climbing-gym/`.
+
+The deployment workflows use SFTP on port 22 with SSH key authentication and
+strict host-key checking. Configure separate `staging` and `production` GitHub
+Environments and add these secrets to the matching environment:
+
+| Environment | Secret names |
+| --- | --- |
+| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PRIVATE_KEY`, `STAGING_SFTP_KNOWN_HOSTS` |
+| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PRIVATE_KEY`, `PROD_SFTP_KNOWN_HOSTS` |
+
+Both host secrets should be `ftp.cluster027.hosting.ovh.net`. Use separate
+deployment users/keys where the host permits, granting staging access only to
+`climb_test` and production access only to the live frontend and plugin
+directories. Do not use the FileZilla password as a workflow secret. Create a
+dedicated, non-interactive SSH key for each target and authorize its public key
+with the hosting provider. Verify each server host-key fingerprint against OVH
+or the fingerprint confirmed by FileZilla before saving the corresponding
+OpenSSH `known_hosts` entry.
+
+Restrict both Environments to deployments from `master`. Configure the
+`production` Environment with required reviewers and prevent self-review before
+the first production release. Credentials are environment-scoped, so they are
+unavailable to validation jobs and are not configured as repository-wide
+secrets. The account must have write permission to its destination directories.
+Uploads overwrite matching files but do not delete remote files. Plugin
+deployment updates the live plugin directly; no WordPress restart is performed.
+To roll back, revert the deployed change on `master`, then run the production
+workflow again. Existing Flutter analyzer warnings and informational lints are
+reported but non-fatal; analyzer errors, failing tests, failed builds, or PHP
+syntax errors block deployment.
 
 ## 📁 Project Structure
 

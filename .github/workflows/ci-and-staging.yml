@@ -1,0 +1,101 @@
+name: CI and staging
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.38.10
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze Flutter code
+        working-directory: frontend
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: frontend
+        run: flutter test
+
+      - name: Build staging web app
+        working-directory: frontend
+        run: flutter build web --release --base-href /climb_test/
+
+      - name: Verify staging base path
+        working-directory: frontend
+        run: grep -Fq '<base href="/climb_test/">' build/web/index.html
+
+      - name: Check WordPress plugin PHP syntax
+        run: find backend/wp-content/plugins/crux-climbing-gym -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Upload staging build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flutter-web-staging
+          path: frontend/build/web/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: staging
+    steps:
+      - name: Download validated staging build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: flutter-web-staging
+          path: build/web
+
+      - name: Upload frontend over SFTP
+        env:
+          SFTP_HOST: ${{ secrets.STAGING_SFTP_HOST }}
+          SFTP_USERNAME: ${{ secrets.STAGING_SFTP_USERNAME }}
+          SFTP_PRIVATE_KEY: ${{ secrets.STAGING_SFTP_PRIVATE_KEY }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.STAGING_SFTP_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
+          printf '%s\n' "$SFTP_PRIVATE_KEY" > "$RUNNER_TEMP/deploy-ssh/id_ed25519"
+          printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/deploy-ssh/id_ed25519" "$RUNNER_TEMP/deploy-ssh/known_hosts"
+          ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null
+          ssh-keygen -lf "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null
+          sftp \
+            -b - \
+            -i "$RUNNER_TEMP/deploy-ssh/id_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/deploy-ssh/known_hosts" \
+            -P 22 \
+            "$SFTP_USERNAME@$SFTP_HOST" <<'SFTP_BATCH'
+          cd /home/cruxclubxi/cruxclub.fr/climb_test
+          put -r build/web/* .
+          SFTP_BATCH
