@@ -562,10 +562,32 @@ class Crux_API
         }
 
         $name_proposals_by_route = $this->get_name_proposals_by_route_ids($route_ids);
+        $stats_by_route = $this->get_route_statistics_by_route_ids($route_ids);
+        $current_user = $this->_get_current_user();
+        $current_user_id = !is_wp_error($current_user) && $current_user->ID > 0
+            ? intval($current_user->ID)
+            : 0;
+        $user_interactions_by_route = $current_user_id > 0
+            ? $this->get_user_route_interactions_by_route_ids($current_user_id, $route_ids)
+            : array(
+                'liked' => array(),
+                'ticked' => array(),
+                'project' => array(),
+            );
 
         // Add route statistics and user interactions for each route
         foreach ($routes as &$route) {
-            $stats = Crux_Route::get_stats($route->id);
+            $route_id = intval($route->id);
+            $stats = isset($stats_by_route[$route_id])
+                ? $stats_by_route[$route_id]
+                : array(
+                    'likes_count' => 0,
+                    'comments_count' => 0,
+                    'ticks_count' => 0,
+                    'warnings_count' => 0,
+                    'grade_proposals_count' => 0,
+                    'projects_count' => 0,
+                );
             $route->likes_count = intval($stats['likes_count']);
             $route->comments_count = intval($stats['comments_count']);
             $route->ticks_count = intval($stats['ticks_count']);
@@ -574,15 +596,14 @@ class Crux_API
             $route->projects_count = intval($stats['projects_count']);
 
             // Add user-specific data if user is authenticated
-            $current_user = $this->_get_current_user();
-            if ($current_user && $current_user->ID > 0) {
-                $route->user_liked = $this->user_has_liked($current_user->ID, $route->id);
-                $route->user_ticked = $this->user_has_ticked($current_user->ID, $route->id);
-                $route->user_project = $this->user_has_project($current_user->ID, $route->id);
+            if ($current_user_id > 0) {
+                $route->user_liked = isset($user_interactions_by_route['liked'][$route_id]);
+                $route->user_ticked = isset($user_interactions_by_route['ticked'][$route_id]);
+                $route->user_project = isset($user_interactions_by_route['project'][$route_id]);
             }
 
-            $route->name_proposals = isset($name_proposals_by_route[intval($route->id)])
-                ? $name_proposals_by_route[intval($route->id)]
+            $route->name_proposals = isset($name_proposals_by_route[$route_id])
+                ? $name_proposals_by_route[$route_id]
                 : array();
         }
 
@@ -664,6 +685,119 @@ class Crux_API
         }
 
         return $grouped;
+    }
+
+    /**
+     * Get route interaction counts grouped by route ID.
+     */
+    private function get_route_statistics_by_route_ids($route_ids)
+    {
+        global $wpdb;
+
+        $normalized_ids = array();
+        foreach ($route_ids as $route_id) {
+            $route_id = intval($route_id);
+            if ($route_id > 0) {
+                $normalized_ids[$route_id] = true;
+            }
+        }
+
+        $normalized_ids = array_keys($normalized_ids);
+        if (empty($normalized_ids)) {
+            return array();
+        }
+
+        $stats_by_route = array();
+        foreach ($normalized_ids as $route_id) {
+            $stats_by_route[$route_id] = array(
+                'likes_count' => 0,
+                'comments_count' => 0,
+                'ticks_count' => 0,
+                'warnings_count' => 0,
+                'grade_proposals_count' => 0,
+                'projects_count' => 0,
+            );
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($normalized_ids), '%d'));
+        $count_queries = array(
+            'likes_count' => array($wpdb->prefix . 'crux_likes', ''),
+            'comments_count' => array($wpdb->prefix . 'crux_comments', ''),
+            'ticks_count' => array(
+                $wpdb->prefix . 'crux_ticks',
+                ' AND (top_rope_send = 1 OR lead_send = 1)',
+            ),
+            'warnings_count' => array($wpdb->prefix . 'crux_warnings', ''),
+            'grade_proposals_count' => array($wpdb->prefix . 'crux_grade_proposals', ''),
+            'projects_count' => array($wpdb->prefix . 'crux_projects', ''),
+        );
+
+        foreach ($count_queries as $count_key => $query_parts) {
+            list($table_name, $where_suffix) = $query_parts;
+            $sql = "SELECT route_id, COUNT(*) AS count
+                    FROM $table_name
+                    WHERE route_id IN ($placeholders)$where_suffix
+                    GROUP BY route_id";
+            $rows = $wpdb->get_results($wpdb->prepare($sql, $normalized_ids));
+
+            foreach ($rows as $row) {
+                $route_id = intval($row->route_id);
+                if (isset($stats_by_route[$route_id])) {
+                    $stats_by_route[$route_id][$count_key] = intval($row->count);
+                }
+            }
+        }
+
+        return $stats_by_route;
+    }
+
+    /**
+     * Get the current user's route interaction membership grouped by type.
+     */
+    private function get_user_route_interactions_by_route_ids($user_id, $route_ids)
+    {
+        global $wpdb;
+
+        $normalized_ids = array();
+        foreach ($route_ids as $route_id) {
+            $route_id = intval($route_id);
+            if ($route_id > 0) {
+                $normalized_ids[$route_id] = true;
+            }
+        }
+
+        $normalized_ids = array_keys($normalized_ids);
+        $interactions = array(
+            'liked' => array(),
+            'ticked' => array(),
+            'project' => array(),
+        );
+        if (empty($normalized_ids)) {
+            return $interactions;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($normalized_ids), '%d'));
+        $interaction_tables = array(
+            'liked' => $wpdb->prefix . 'crux_likes',
+            'ticked' => $wpdb->prefix . 'crux_ticks',
+            'project' => $wpdb->prefix . 'crux_projects',
+        );
+
+        foreach ($interaction_tables as $interaction_key => $table_name) {
+            $sql = "SELECT route_id
+                    FROM $table_name
+                    WHERE user_id = %d AND route_id IN ($placeholders)";
+            $query_params = array_merge(array(intval($user_id)), $normalized_ids);
+            $route_ids_for_interaction = $wpdb->get_col(
+                $wpdb->prepare($sql, $query_params)
+            );
+
+            foreach ($route_ids_for_interaction as $route_id) {
+                $interactions[$interaction_key][intval($route_id)] = true;
+            }
+        }
+
+        return $interactions;
     }
 
     /**
@@ -968,19 +1102,21 @@ class Crux_API
         
         if (!$tick) {
             // Create empty tick record in database
+            $timestamp = current_time('mysql');
+            $empty_tick = array(
+                'user_id' => $current_user->ID,
+                'route_id' => $route_id,
+                'notes' => null,
+                'top_rope_attempts' => 0,
+                'lead_attempts' => 0,
+                'top_rope_send' => 0,
+                'lead_send' => 0,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp
+            );
             $result = $wpdb->insert(
                 $table_name,
-                array(
-                    'user_id' => $current_user->ID,
-                    'route_id' => $route_id,
-                    'notes' => null,
-                    'top_rope_attempts' => 0,
-                    'lead_attempts' => 0,
-                    'top_rope_send' => 0,
-                    'lead_send' => 0,
-                    'created_at' => current_time('mysql'),
-                    'updated_at' => current_time('mysql')
-                ),
+                $empty_tick,
                 array('%d', '%d', '%s', '%d', '%d', '%d', '%d', '%s', '%s')
             );
             
@@ -988,8 +1124,18 @@ class Crux_API
                 return new WP_Error('tick_creation_failed', 'Failed to create empty tick record', array('status' => 500));
             }
             
-            // Get the newly created tick
-            $tick = $wpdb->get_row($sql, ARRAY_A);
+            $tick = array(
+                'id' => (string) $wpdb->insert_id,
+                'user_id' => (string) $empty_tick['user_id'],
+                'route_id' => (string) $empty_tick['route_id'],
+                'top_rope_attempts' => (string) $empty_tick['top_rope_attempts'],
+                'lead_attempts' => (string) $empty_tick['lead_attempts'],
+                'notes' => $empty_tick['notes'],
+                'top_rope_send' => (string) $empty_tick['top_rope_send'],
+                'lead_send' => (string) $empty_tick['lead_send'],
+                'created_at' => $empty_tick['created_at'],
+                'updated_at' => $empty_tick['updated_at']
+            );
         }
         
         return $tick;

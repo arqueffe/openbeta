@@ -10,6 +10,7 @@
  * @author     Your Name <you@example.com>
  */
 class Crux_Activator {
+    const SCHEMA_VERSION = '1.0.1';
 
     /**
      * Short Description. (use period)
@@ -29,8 +30,21 @@ class Crux_Activator {
         self::check_requirements();
         self::create_tables();
         self::populate_sample_data();
+        update_option('crux_climbing_gym_schema_version', self::SCHEMA_VERSION);
         
         error_log('Crux Plugin: Activation completed');
+    }
+
+    /**
+     * Apply schema changes for existing plugin installations.
+     */
+    public static function maybe_upgrade() {
+        if (get_option('crux_climbing_gym_schema_version') === self::SCHEMA_VERSION) {
+            return;
+        }
+
+        self::create_tables();
+        update_option('crux_climbing_gym_schema_version', self::SCHEMA_VERSION);
     }
 
     /**
@@ -156,6 +170,7 @@ class Crux_Activator {
             KEY lane_id (lane_id),
             KEY wall_section (wall_section),
             KEY hold_color_id (hold_color_id),
+            KEY active_created_at (active, created_at),
             image varchar(100)
         ) $charset_collate;";
         
@@ -177,7 +192,8 @@ class Crux_Activator {
             PRIMARY KEY (id),
             UNIQUE KEY user_route (user_id, route_id),
             KEY user_id (user_id),
-            KEY route_id (route_id)
+            KEY route_id (route_id),
+            KEY user_created_at (user_id, created_at)
         ) $charset_collate;";
         
         $result = dbDelta($sql);
@@ -250,7 +266,8 @@ class Crux_Activator {
             PRIMARY KEY (id),
             UNIQUE KEY user_route (user_id, route_id),
             KEY user_id (user_id),
-            KEY route_id (route_id)
+            KEY route_id (route_id),
+            KEY user_created_at (user_id, created_at)
         ) $charset_collate;";
         
         $result = dbDelta($sql);
@@ -273,7 +290,8 @@ class Crux_Activator {
             PRIMARY KEY (id),
             UNIQUE KEY user_route (user_id, route_id),
             KEY user_id (user_id),
-            KEY route_id (route_id)
+            KEY route_id (route_id),
+            KEY user_created_at (user_id, created_at)
         ) $charset_collate;";
         
         $result = dbDelta($sql);

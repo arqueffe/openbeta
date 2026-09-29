@@ -3,7 +3,7 @@
  * Plugin Name: Crux Climbing Gym Management
  * Plugin URI: https://github.com/arqueffe/crux_gym
  * Description: Comprehensive climbing gym management system with route tracking, user interactions, and performance analytics.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Arthur
  * License: MIT
  * Text Domain: crux-climbing-gym
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 /**
  * Currently plugin version.
  */
-define('CRUX_CLIMBING_GYM_VERSION', '1.0.0');
+define('CRUX_CLIMBING_GYM_VERSION', '1.0.1');
 define('CRUX_CLIMBING_GYM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CRUX_CLIMBING_GYM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -54,4 +54,12 @@ function run_crux_climbing_gym() {
     $plugin = new Crux();
     $plugin->run();
 }
+
+function maybe_upgrade_crux_climbing_gym() {
+    require_once CRUX_CLIMBING_GYM_PLUGIN_DIR . 'includes/class-crux-activator.php';
+    Crux_Activator::maybe_upgrade();
+}
+
+add_action('plugins_loaded', 'maybe_upgrade_crux_climbing_gym');
+
 run_crux_climbing_gym();

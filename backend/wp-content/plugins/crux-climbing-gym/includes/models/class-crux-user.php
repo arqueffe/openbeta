@@ -71,24 +71,20 @@ class Crux_User {
         $routes_table = $wpdb->prefix . 'crux_routes';
         $grades_table = $wpdb->prefix . 'crux_grades';
         
-        $stats = array();
-        
-        // Basic counts
-        $stats['total_ticks'] = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $ticks_table WHERE user_id = %d", $user_id
-        )) ?: 0;
-        
-        $stats['total_likes'] = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $likes_table WHERE user_id = %d", $user_id
-        )) ?: 0;
-        
-        $stats['total_comments'] = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $comments_table WHERE user_id = %d", $user_id
-        )) ?: 0;
-        
-        $stats['total_projects'] = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $projects_table WHERE user_id = %d", $user_id
-        )) ?: 0;
+        $totals = $wpdb->get_row($wpdb->prepare("
+            SELECT
+                (SELECT COUNT(*) FROM $ticks_table WHERE user_id = %d) AS total_ticks,
+                (SELECT COUNT(*) FROM $likes_table WHERE user_id = %d) AS total_likes,
+                (SELECT COUNT(*) FROM $comments_table WHERE user_id = %d) AS total_comments,
+                (SELECT COUNT(*) FROM $projects_table WHERE user_id = %d) AS total_projects
+        ", $user_id, $user_id, $user_id, $user_id), ARRAY_A);
+
+        $stats = array(
+            'total_ticks' => ($totals['total_ticks'] ?? null) ?: 0,
+            'total_likes' => ($totals['total_likes'] ?? null) ?: 0,
+            'total_comments' => ($totals['total_comments'] ?? null) ?: 0,
+            'total_projects' => ($totals['total_projects'] ?? null) ?: 0,
+        );
         
         // Send statistics
         $send_stats = $wpdb->get_row($wpdb->prepare("
