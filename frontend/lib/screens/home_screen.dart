@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/lane_models.dart';
@@ -25,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Map<int, double> _wallLaneStrengths = const {};
+  final Set<String> _preloadedLaneImages = {};
   late final AnimationController _laneImageRevealController;
 
   @override
@@ -103,6 +106,51 @@ class _HomeScreenState extends State<HomeScreen>
       showImage ? 1 : 0,
       curve: Curves.easeOutCubic,
     );
+  }
+
+  String? _laneImageFor(RouteProvider routeProvider, int laneId) {
+    final routes = routeProvider.routesForLane(laneId);
+    if (routes.isEmpty) {
+      return null;
+    }
+
+    final image = routes.first.image?.trim();
+    return image == null || image.isEmpty ? null : image;
+  }
+
+  void _preloadNearbyLaneImages(
+    RouteProvider routeProvider,
+    List<Lane> lanes,
+    int selectedLaneId,
+  ) {
+    final selectedIndex = lanes.indexWhere(
+      (lane) => lane.id == selectedLaneId,
+    );
+    if (selectedIndex < 0) {
+      return;
+    }
+
+    final firstIndex = selectedIndex > 0 ? selectedIndex - 1 : 0;
+    final lastIndex =
+        selectedIndex < lanes.length - 1 ? selectedIndex + 1 : selectedIndex;
+    for (var index = firstIndex; index <= lastIndex; index++) {
+      final image = _laneImageFor(routeProvider, lanes[index].id);
+      if (image == null || !_preloadedLaneImages.add(image)) {
+        continue;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) {
+          return;
+        }
+        try {
+          await precacheImage(NetworkImage(image), context);
+        } catch (error) {
+          _preloadedLaneImages.remove(image);
+          debugPrint('Could not preload lane image: $error');
+        }
+      });
+    }
   }
 
   @override
@@ -185,13 +233,13 @@ class _HomeScreenState extends State<HomeScreen>
               : (_wallLaneStrengths.containsKey(singleLaneId)
                   ? _wallLaneStrengths
                   : {singleLaneId: 1.0});
-          final singleLaneRoutes = singleLaneId == null
-              ? const <models.Route>[]
-              : routeProvider.routesForLane(singleLaneId);
-          final laneImage = singleLaneRoutes.isEmpty
+          final laneImage = singleLaneId == null
               ? null
-              : singleLaneRoutes.first.image?.trim();
-          final hasLaneImage = laneImage != null && laneImage.isNotEmpty;
+              : _laneImageFor(routeProvider, singleLaneId);
+          final hasLaneImage = laneImage != null;
+          if (singleLaneId != null) {
+            _preloadNearbyLaneImages(routeProvider, lanes, singleLaneId);
+          }
 
           final content = Column(
             children: [
@@ -246,15 +294,38 @@ class _HomeScreenState extends State<HomeScreen>
             child: content,
             builder: (context, child) {
               final progress = _laneImageRevealController.value;
+              final laneImageProvider = NetworkImage(laneImage);
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        laneImage,
-                        fit: BoxFit.cover,
-                        webHtmlElementStrategy: WebHtmlElementStrategy.never,
+                      ClipRect(
+                        child: ImageFiltered(
+                          imageFilter: ui.ImageFilter.blur(
+                            sigmaX: 22,
+                            sigmaY: 22,
+                          ),
+                          child: Transform.scale(
+                            scale: 1.08,
+                            child: Image(
+                              image: laneImageProvider,
+                              fit: BoxFit.cover,
+                              filterQuality: FilterQuality.low,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.2),
+                      ),
+                      Image(
+                        image: laneImageProvider,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        filterQuality: FilterQuality.high,
                         errorBuilder: (_, __, ___) =>
                             const SizedBox.shrink(),
                       ),
@@ -262,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen>
                         color: Theme.of(context)
                             .colorScheme
                             .surface
-                            .withValues(alpha: 0.68 - (progress * 0.54)),
+                            .withValues(alpha: 0.6 - (progress * 0.53)),
                       ),
                       Transform.translate(
                         offset: Offset(0, constraints.maxHeight * progress),
