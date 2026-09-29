@@ -109,6 +109,7 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                     widthScale < heightScale ? widthScale : heightScale;
                 final scaledWidth = _wallData!.imageInfo.width * scale;
                 final scaledHeight = _wallData!.imageInfo.height * scale;
+                final transition = _laneTransition();
 
                 return Center(
                   child: SizedBox(
@@ -139,6 +140,8 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                                           ? 1.0
                                           : 0.0));
                           final isSelected = selectionStrength > 0.001;
+                          final paintedSelectionStrength =
+                              transition == null ? selectionStrength : 0.0;
                           final isDimmed =
                               widget.laneSelectionStrengths != null ||
                                       widget.selectedLaneId != null
@@ -148,11 +151,24 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
                           return _buildLaneOverlay(
                             shape,
                             scale,
-                            selectionStrength,
+                            paintedSelectionStrength,
                             isDimmed,
                             () => _onLaneSelected(routeProvider, shape.laneId),
                           );
                         }),
+                        if (transition != null)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: CustomPaint(
+                                painter: MorphingLanePainter(
+                                  from: transition.from,
+                                  to: transition.to,
+                                  progress: transition.progress,
+                                  scale: scale,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -172,6 +188,40 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
           child: wall,
         );
       },
+    );
+  }
+
+  _LaneTransition? _laneTransition() {
+    final strengths = widget.laneSelectionStrengths;
+    if (strengths == null || _wallData == null) {
+      return null;
+    }
+
+    final activeEntries =
+        strengths.entries.where((entry) => entry.value > 0.001).toList();
+    if (activeEntries.length != 2) {
+      return null;
+    }
+
+    LaneShape? shapeFor(int laneId) {
+      for (final shape in _wallData!.shapes) {
+        if (shape.laneId == laneId) {
+          return shape;
+        }
+      }
+      return null;
+    }
+
+    final from = shapeFor(activeEntries.first.key);
+    final to = shapeFor(activeEntries.last.key);
+    if (from == null || to == null) {
+      return null;
+    }
+
+    return _LaneTransition(
+      from: from,
+      to: to,
+      progress: activeEntries.last.value.clamp(0.0, 1.0),
     );
   }
 
@@ -215,6 +265,179 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
       return;
     }
     routeProvider.toggleLaneFilter(laneId);
+  }
+}
+
+class _LaneTransition {
+  final LaneShape from;
+  final LaneShape to;
+  final double progress;
+
+  const _LaneTransition({
+    required this.from,
+    required this.to,
+    required this.progress,
+  });
+}
+
+class MorphingLanePainter extends CustomPainter {
+  static const _sampleCount = 48;
+
+  final LaneShape from;
+  final LaneShape to;
+  final double progress;
+  final double scale;
+
+  MorphingLanePainter({
+    required this.from,
+    required this.to,
+    required this.progress,
+    required this.scale,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fromPoints = _samplePolygon(from);
+    final toPoints = _samplePolygon(to);
+    final points = List<Offset>.generate(
+      _sampleCount,
+      (index) => Offset.lerp(
+        fromPoints[index],
+        toPoints[index],
+        progress,
+      )!,
+    );
+    if (points.isEmpty) {
+      return;
+    }
+
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (final point in points.skip(1)) {
+      path.lineTo(point.dx, point.dy);
+    }
+    path.close();
+
+    final glowPaint = Paint()
+      ..color = const Color(0xFFFCB900).withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    final fillPaint = Paint()
+      ..color = const Color(0xFFFCB900).withValues(alpha: 0.42)
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = const Color(0xFFFCB900)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas
+      ..drawPath(path, glowPaint)
+      ..drawPath(path, fillPaint)
+      ..drawPath(path, borderPaint);
+
+    final center = points.fold<Offset>(
+          Offset.zero,
+          (sum, point) => sum + point,
+        ) /
+        points.length.toDouble();
+    final laneId = progress < 0.5 ? from.laneId : to.laneId;
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: '$laneId',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(color: Colors.black, offset: Offset(1, 1), blurRadius: 2),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      center - Offset(textPainter.width / 2, textPainter.height / 2),
+    );
+  }
+
+  List<Offset> _samplePolygon(LaneShape shape) {
+    var points = shape.points
+        .map((point) => Offset(point[0] * scale, point[1] * scale))
+        .toList();
+    if (points.length < 2) {
+      return List.filled(
+        _sampleCount,
+        points.isEmpty ? Offset.zero : points.first,
+      );
+    }
+
+    if (_signedArea(points) < 0) {
+      points = points.reversed.toList();
+    }
+    points = _rotateToTop(points);
+
+    final lengths = <double>[0];
+    var perimeter = 0.0;
+    for (var index = 0; index < points.length; index++) {
+      perimeter +=
+          (points[(index + 1) % points.length] - points[index]).distance;
+      lengths.add(perimeter);
+    }
+    if (perimeter == 0) {
+      return List.filled(_sampleCount, points.first);
+    }
+
+    return List.generate(_sampleCount, (sampleIndex) {
+      final target = perimeter * sampleIndex / _sampleCount;
+      var segment = 0;
+      while (segment < points.length - 1 && lengths[segment + 1] < target) {
+        segment++;
+      }
+      final segmentLength = lengths[segment + 1] - lengths[segment];
+      final segmentProgress = segmentLength == 0
+          ? 0.0
+          : (target - lengths[segment]) / segmentLength;
+      return Offset.lerp(
+        points[segment],
+        points[(segment + 1) % points.length],
+        segmentProgress,
+      )!;
+    });
+  }
+
+  List<Offset> _rotateToTop(List<Offset> points) {
+    var anchorIndex = 0;
+    for (var index = 1; index < points.length; index++) {
+      final candidate = points[index];
+      final anchor = points[anchorIndex];
+      if (candidate.dy < anchor.dy ||
+          (candidate.dy == anchor.dy && candidate.dx < anchor.dx)) {
+        anchorIndex = index;
+      }
+    }
+    return [
+      ...points.skip(anchorIndex),
+      ...points.take(anchorIndex),
+    ];
+  }
+
+  double _signedArea(List<Offset> points) {
+    var area = 0.0;
+    for (var index = 0; index < points.length; index++) {
+      final current = points[index];
+      final next = points[(index + 1) % points.length];
+      area += current.dx * next.dy - next.dx * current.dy;
+    }
+    return area / 2;
+  }
+
+  @override
+  bool shouldRepaint(covariant MorphingLanePainter oldDelegate) {
+    return oldDelegate.from != from ||
+        oldDelegate.to != to ||
+        oldDelegate.progress != progress ||
+        oldDelegate.scale != scale;
   }
 }
 
