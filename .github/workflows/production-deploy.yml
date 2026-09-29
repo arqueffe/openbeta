@@ -108,7 +108,10 @@ jobs:
           install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
           printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/deploy-ssh/known_hosts"
-          ssh-keygen -lf "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null
+          if ! ssh-keygen -F "$SFTP_HOST" -f "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null; then
+            echo "::error::FTP_KNOWN_HOSTS has no host key entry for $SFTP_HOST."
+            exit 1
+          fi
 
           sftp_args=(
             -b -
