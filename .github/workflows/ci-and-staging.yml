@@ -75,18 +75,18 @@ jobs:
 
       - name: Upload frontend over SFTP
         env:
-          SFTP_HOST: ${{ secrets.STAGING_SFTP_HOST }}
-          SFTP_USERNAME: ${{ secrets.STAGING_SFTP_USERNAME }}
-          SFTP_PASSWORD: ${{ secrets.STAGING_SFTP_PASSWORD }}
-          SFTP_KNOWN_HOSTS: ${{ secrets.STAGING_SFTP_KNOWN_HOSTS }}
+          SFTP_HOST: ftp.cluster027.hosting.ovh.net
+          SFTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          SFTP_KNOWN_HOSTS: ${{ vars.FTP_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           if [[ -z "$SFTP_USERNAME" || -z "$SFTP_PASSWORD" ]]; then
-            echo "::error::Missing staging environment secrets STAGING_SFTP_USERNAME or STAGING_SFTP_PASSWORD."
+            echo "::error::Add the FTP_USERNAME and FTP_PASSWORD repository secrets."
             exit 1
           fi
-          if [[ -z "$SFTP_HOST" || -z "$SFTP_KNOWN_HOSTS" ]]; then
-            echo "::error::Missing staging environment secret STAGING_SFTP_HOST or STAGING_SFTP_KNOWN_HOSTS."
+          if [[ -z "$SFTP_KNOWN_HOSTS" ]]; then
+            echo "::error::Add the verified FTP_KNOWN_HOSTS repository variable."
             exit 1
           fi
           sudo apt-get update

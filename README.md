@@ -92,25 +92,16 @@ workflow; approval is required before any production upload. The production
 frontend path is `/home/cruxclubxi/cruxclub.fr/climb/`, and the plugin path is
 `/home/cruxclubxi/cruxclub.fr/wp-content/plugins/crux-climbing-gym/`.
 
-The deployment workflows use SFTP on port 22 with password authentication and
-strict host-key checking. Configure separate `staging` and `production` GitHub
-Environments and add these secrets to the matching environment:
-
-| Environment | Secret names |
-| --- | --- |
-| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PASSWORD`, `STAGING_SFTP_KNOWN_HOSTS` |
-| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PASSWORD`, `PROD_SFTP_KNOWN_HOSTS` |
-
-Both host secrets should be `ftp.cluster027.hosting.ovh.net`. Use separate
-deployment accounts where the host permits, granting staging access only to
-`climb_test` and production access only to the live frontend and plugin
-directories. Add the SFTP password only as the matching GitHub Environment
-secret, never as a repository file or workflow input. Verify the server host-key
-fingerprint against OVH or the fingerprint confirmed by FileZilla, then save
-the verified OpenSSH `known_hosts` entry in the corresponding Environment
-secret. Password authentication is sent inside the encrypted SFTP/SSH
-connection; strict host-key checking prevents connecting to an impersonated
-server.
+Both deployment workflows use the one SFTP account over port 22 at
+`ftp.cluster027.hosting.ovh.net`; they do not require separate staging and
+production credentials. Add repository Actions secrets `FTP_USERNAME` and
+`FTP_PASSWORD`. Also add the public, verified OpenSSH host-key entry as the
+repository Actions variable `FTP_KNOWN_HOSTS`. Verify the host-key fingerprint
+against OVH or the fingerprint confirmed by FileZilla before adding it. Password
+authentication stays inside the encrypted SFTP/SSH connection, and strict
+host-key checking prevents connecting to an impersonated server. The staging
+workflow uploads only to `climb_test`; the manually approved production
+workflow uploads to the live frontend and/or WordPress plugin.
 
 Restrict both Environments to deployments from `master`. Configure the
 `production` Environment with required reviewers and prevent self-review before
