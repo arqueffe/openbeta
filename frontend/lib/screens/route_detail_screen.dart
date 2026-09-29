@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../generated/l10n/app_localizations.dart';
+import '../models/route_models.dart' as models;
 import '../providers/route_provider.dart';
-import '../widgets/route_interactions.dart';
-import '../widgets/custom_app_bar.dart';
-import '../widgets/route_detail/route_detail_media.dart';
-import '../widgets/route_detail/route_detail_header_card.dart';
-import '../widgets/route_detail/route_detail_activity_sections.dart';
+import '../utils/color_utils.dart';
+import '../widgets/grade_chip.dart';
 import '../widgets/route_detail/name_proposal_section.dart';
+import '../widgets/route_detail/route_detail_activity_sections.dart';
+import '../widgets/route_detail/route_detail_media.dart';
+import '../widgets/route_interactions.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final int routeId;
@@ -24,20 +26,16 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final routeProvider = context.read<RouteProvider>();
-      routeProvider
-          .loadRoute(widget.routeId); // This now handles all dependencies
-      routeProvider
-          .loadGradeColors(); // Still needed for other grade color operations
+      routeProvider.loadRoute(widget.routeId);
+      routeProvider.loadGradeColors();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+
     return Scaffold(
-      appBar: CustomAppBar(
-        title: l10n.routeTitle,
-      ),
       body: Consumer<RouteProvider>(
         builder: (context, routeProvider, child) {
           if (routeProvider.isLoading) {
@@ -45,24 +43,10 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
           }
 
           if (routeProvider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${l10n.error}: ${routeProvider.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => routeProvider.loadRoute(widget.routeId),
-                    child: Text(l10n.retry),
-                  ),
-                ],
-              ),
+            return _RouteLoadError(
+              message: routeProvider.error!,
+              onRetry: () => routeProvider.loadRoute(widget.routeId),
+              l10n: l10n,
             );
           }
 
@@ -71,174 +55,387 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
             return Center(child: Text(l10n.routeNotFound));
           }
 
-          final screenWidth = MediaQuery.of(context).size.width;
-          final isWideScreen = screenWidth > 600;
-
-          return Stack(
-            children: [
-              // Background Image
+          return CustomScrollView(
+            slivers: [
               if (route.image != null)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () async {
-                      await showDialog(
-                        context: context,
-                        builder: (_) => RouteImageDialog(route.image!),
-                      );
-                    },
-                    child: Image.network(
-                      route.image!,
-                      fit: BoxFit.cover,
-                      webHtmlElementStrategy: WebHtmlElementStrategy.never,
+                SliverFillViewport(
+                  delegate: SliverChildListDelegate.fixed([
+                    _RouteHero(route: route),
+                  ]),
+                ),
+              if (route.image == null)
+                SliverAppBar(
+                  surfaceTintColor: Colors.transparent,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  title: Text(route.displayName(unnamedFallback: l10n.unnamed)),
+                ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: _RouteSummaryCard(route: route, l10n: l10n),
                     ),
                   ),
                 ),
-
-              // Zoom indicator for background
-              if (route.image != null)
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap: () async {
-                      await showDialog(
-                        context: context,
-                        builder: (_) => RouteImageDialog(route.image!),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(
-                            Icons.zoom_in,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Tap to zoom',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                          RouteInteractions(route: route, compact: true),
+                          if (route.name == 'Unnamed') ...[
+                            const SizedBox(height: 16),
+                            NameProposalSection(route: route),
+                          ],
+                          if (route.comments != null &&
+                              route.comments!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            RouteCommentsSection(
+                              comments: route.comments!,
+                              l10n: l10n,
                             ),
-                          ),
+                          ],
+                          if (route.gradeProposals != null &&
+                              route.gradeProposals!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            RouteGradeProposalsSection(
+                              proposals: route.gradeProposals!,
+                              l10n: l10n,
+                            ),
+                          ],
+                          if (route.warnings != null &&
+                              route.warnings!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            RouteWarningsSection(
+                              warnings: route.warnings!,
+                              l10n: l10n,
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                 ),
-
-              // Scrollable Content with top spacing
-              SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Empty space to show the background image - transparent to taps
-                    if (route.image != null)
-                      GestureDetector(
-                        onTap: () async {
-                          await showDialog(
-                            context: context,
-                            builder: (_) => RouteImageDialog(route.image!),
-                          );
-                        },
-                        child: Container(
-                          height: isWideScreen ? 300 : 250,
-                          color: Colors.transparent,
-                        ),
-                      ),
-
-                    // Content area with semi-transparent background
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withValues(alpha: 0.92),
-                            Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withValues(alpha: 0.97),
-                          ],
-                        ),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          topRight: Radius.circular(32),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Route Header Card
-                            RouteHeaderCard(route: route, l10n: l10n),
-                            const SizedBox(height: 20),
-
-                            // User Interactions
-                            RouteInteractions(route: route),
-
-                            // Name Proposals Section (only for unnamed routes)
-                            if (route.name == 'Unnamed') ...[
-                              const SizedBox(height: 20),
-                              NameProposalSection(route: route),
-                            ],
-
-                            // Comments Section
-                            if (route.comments != null &&
-                                route.comments!.isNotEmpty) ...[
-                              const SizedBox(height: 20),
-                              RouteCommentsSection(
-                                comments: route.comments!,
-                                l10n: l10n,
-                              ),
-                            ],
-
-                            // Grade Proposals Section
-                            if (route.gradeProposals != null &&
-                                route.gradeProposals!.isNotEmpty) ...[
-                              const SizedBox(height: 20),
-                              RouteGradeProposalsSection(
-                                proposals: route.gradeProposals!,
-                                l10n: l10n,
-                              ),
-                            ],
-
-                            // Warnings Section
-                            if (route.warnings != null &&
-                                route.warnings!.isNotEmpty) ...[
-                              const SizedBox(height: 20),
-                              RouteWarningsSection(
-                                warnings: route.warnings!,
-                                l10n: l10n,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _RouteHero extends StatelessWidget {
+  final models.Route route;
+
+  const _RouteHero({required this.route});
+
+  @override
+  Widget build(BuildContext context) {
+    final image = route.image;
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: image == null
+          ? null
+          : () async {
+              await showDialog(
+                context: context,
+                builder: (_) => RouteImageDialog(image),
+              );
+            },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (image != null)
+            Image.network(
+              image,
+              fit: BoxFit.cover,
+              webHtmlElementStrategy: WebHtmlElementStrategy.never,
+              errorBuilder: (_, __, ___) => _RouteImagePlaceholder(
+                color: theme.colorScheme.primaryContainer,
+              ),
+            )
+          else
+            _RouteImagePlaceholder(color: theme.colorScheme.primaryContainer),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x22000000),
+                  Color(0x11000000),
+                  Color(0xB8000000),
+                ],
+              ),
+            ),
+          ),
+          if (image != null)
+            const Positioned(
+              right: 20,
+              bottom: 20,
+              child: _PhotoHint(),
+            ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: SafeArea(
+              child: IconButton(
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back),
+                color: Colors.white,
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.38),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteImagePlaceholder extends StatelessWidget {
+  final Color color;
+
+  const _RouteImagePlaceholder({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: color,
+      child: Center(
+        child: Icon(
+          Icons.terrain_outlined,
+          size: 68,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoHint extends StatelessWidget {
+  const _PhotoHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Icon(Icons.zoom_out_map, color: Colors.white, size: 18),
+    );
+  }
+}
+
+class _RouteSummaryCard extends StatelessWidget {
+  final models.Route route;
+  final AppLocalizations l10n;
+
+  const _RouteSummaryCard({required this.route, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final description = route.description?.trim();
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                GradeChip(
+                  grade: route.gradeName ?? '-',
+                  gradeColorHex: route.gradeColor,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  fontSize: 16,
+                ),
+                const Spacer(),
+                if (route.colorHex != null)
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: ColorUtils.parseHexColor(route.colorHex!),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: theme.colorScheme.outline),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              route.displayName(unnamedFallback: l10n.unnamed),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _RouteMetadata(
+                  icon: Icons.location_on_outlined,
+                  label: route.wallSection,
+                ),
+                _RouteMetadata(
+                  icon: Icons.format_list_numbered,
+                  label: l10n.laneLabel(route.lane),
+                ),
+                _RouteMetadata(
+                  icon: Icons.person_outline,
+                  label: l10n.setBy(route.routeSetter),
+                ),
+              ],
+            ),
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Divider(color: theme.colorScheme.outlineVariant),
+              const SizedBox(height: 14),
+              Text(description, style: theme.textTheme.bodyLarge),
+            ],
+            const SizedBox(height: 18),
+            Divider(color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 20,
+              runSpacing: 10,
+              children: [
+                _RouteStat(
+                  icon: Icons.favorite_border,
+                  label: '${route.likesCount}',
+                ),
+                _RouteStat(
+                  icon: Icons.check_circle_outline,
+                  label: '${route.ticksCount}',
+                ),
+                _RouteStat(
+                  icon: Icons.chat_bubble_outline,
+                  label: '${route.commentsCount}',
+                ),
+                if (route.warningsCount > 0)
+                  _RouteStat(
+                    icon: Icons.warning_amber_outlined,
+                    label: '${route.warningsCount}',
+                    color: theme.colorScheme.error,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteMetadata extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _RouteMetadata({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _RouteStat({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: foreground),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(color: foreground)),
+      ],
+    );
+  }
+}
+
+class _RouteLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final AppLocalizations l10n;
+
+  const _RouteLoadError({
+    required this.message,
+    required this.onRetry,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 56,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${l10n.error}: $message',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: onRetry, child: Text(l10n.retry)),
+          ],
+        ),
       ),
     );
   }

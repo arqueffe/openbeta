@@ -11,8 +11,13 @@ import '../widgets/route_interaction_feedback.dart';
 
 class RouteInteractions extends StatefulWidget {
   final models.Route route;
+  final bool compact;
 
-  const RouteInteractions({super.key, required this.route});
+  const RouteInteractions({
+    super.key,
+    required this.route,
+    this.compact = false,
+  });
 
   @override
   State<RouteInteractions> createState() => _RouteInteractionsState();
@@ -109,6 +114,10 @@ class _RouteInteractionsState extends State<RouteInteractions> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+
+    if (widget.compact) {
+      return _buildCompact(context, l10n);
+    }
 
     return SizedBox(
       width: double.infinity,
@@ -645,6 +654,202 @@ class _RouteInteractionsState extends State<RouteInteractions> {
     );
   }
 
+  Widget _buildCompact(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final isLeadSent = _isLeadSent();
+    final isTopRopeSent = _isTopRopeSent();
+    final canToggleProject = !isLeadSent || _isProject;
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.emoji_events_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.yourProgress,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _toggleLeadSend,
+                    icon: Icon(
+                      isLeadSent
+                          ? Icons.check_circle
+                          : Icons.vertical_align_top,
+                    ),
+                    label: Text(isLeadSent ? l10n.leadSent : l10n.lead),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isLeadSent ? null : _addAttemptOptimized,
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: Text(
+                      isLeadSent ? l10n.alreadySent : l10n.addAttempts,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CompactActionButton(
+                  icon: isTopRopeSent ? Icons.check_circle : Icons.arrow_upward,
+                  label: isTopRopeSent ? l10n.topRopeSent : l10n.topRope,
+                  isSelected: isTopRopeSent,
+                  onPressed: _toggleTopRopeSend,
+                ),
+                _CompactActionButton(
+                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+                  label: _isLiked ? l10n.liked : l10n.like,
+                  isSelected: _isLiked,
+                  onPressed: _toggleLike,
+                ),
+                _CompactActionButton(
+                  icon: _isProject ? Icons.flag : Icons.flag_outlined,
+                  label: _isProject ? l10n.project : l10n.addProject,
+                  isSelected: _isProject,
+                  onPressed: canToggleProject ? _toggleProject : null,
+                ),
+                PopupMenuButton<_CompactRouteAction>(
+                  tooltip: l10n.interactions,
+                  onSelected: _handleCompactAction,
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: _CompactRouteAction.note,
+                      child: _CompactMenuItem(
+                        icon: Icons.sticky_note_2_outlined,
+                        label: l10n.note,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _CompactRouteAction.comment,
+                      child: _CompactMenuItem(
+                        icon: Icons.comment_outlined,
+                        label: l10n.comment,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _CompactRouteAction.grade,
+                      child: _CompactMenuItem(
+                        icon: Icons.grade_outlined,
+                        label: l10n.suggestGrade,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _CompactRouteAction.report,
+                      child: _CompactMenuItem(
+                        icon: Icons.warning_amber_outlined,
+                        label: l10n.reportIssue,
+                      ),
+                    ),
+                  ],
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.more_horiz),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Divider(color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ProgressMetric(
+                    icon: Icons.repeat,
+                    value: '${_tickData?.attempts ?? 0}',
+                    label: l10n.attemptsLabel,
+                  ),
+                ),
+                Expanded(
+                  child: _ProgressMetric(
+                    icon:
+                        isTopRopeSent ? Icons.check_circle : Icons.arrow_upward,
+                    value: isTopRopeSent ? '✓' : '—',
+                    label: l10n.topRopeLabel,
+                    isComplete: isTopRopeSent,
+                  ),
+                ),
+                Expanded(
+                  child: _ProgressMetric(
+                    icon: isLeadSent
+                        ? Icons.check_circle
+                        : Icons.vertical_align_top,
+                    value: isLeadSent ? '✓' : '—',
+                    label: l10n.lead,
+                    isComplete: isLeadSent,
+                  ),
+                ),
+              ],
+            ),
+            if ((_tickData?.notes ?? '').isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  _tickData?.notes ?? '',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleCompactAction(_CompactRouteAction action) {
+    switch (action) {
+      case _CompactRouteAction.note:
+        return _showNotesDialog();
+      case _CompactRouteAction.comment:
+        return _showCommentDialog();
+      case _CompactRouteAction.grade:
+        return _showGradeProposalDialog();
+      case _CompactRouteAction.report:
+        return _showWarningDialog();
+    }
+  }
+
   // Optimized attempt tracking that doesn't reload the entire page
   Future<void> _addAttemptOptimized() async {
     final l10n = AppLocalizations.of(context);
@@ -670,7 +875,8 @@ class _RouteInteractionsState extends State<RouteInteractions> {
 
     final routeProvider = context.read<RouteProvider>();
     try {
-      final success = await routeProvider.addAttemptsOptimized(widget.route.id, 1,
+      final success = await routeProvider.addAttemptsOptimized(
+          widget.route.id, 1,
           notes: '', attemptType: attemptType);
       if (!success) {
         if (mounted) {
@@ -1248,5 +1454,106 @@ class _RouteInteractionsState extends State<RouteInteractions> {
       showRouteInteractionError(
           context, '${l10n.error}: ${routeProvider.error}');
     }
+  }
+}
+
+enum _CompactRouteAction {
+  note,
+  comment,
+  grade,
+  report,
+}
+
+class _CompactActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback? onPressed;
+
+  const _CompactActionButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+        backgroundColor:
+            isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+        side: BorderSide(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _CompactMenuItem({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _ProgressMetric extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final bool isComplete;
+
+  const _ProgressMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.isComplete = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isComplete
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+        ),
+      ],
+    );
   }
 }
