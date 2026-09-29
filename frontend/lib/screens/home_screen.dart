@@ -389,7 +389,7 @@ class _LaneRouteCarouselState extends State<_LaneRouteCarousel> {
   }
 }
 
-class _LaneRoutePage extends StatelessWidget {
+class _LaneRoutePage extends StatefulWidget {
   final List<models.Route> routes;
   final RouteProvider routeProvider;
 
@@ -399,33 +399,173 @@ class _LaneRoutePage extends StatelessWidget {
   });
 
   @override
+  State<_LaneRoutePage> createState() => _LaneRoutePageState();
+}
+
+class _LaneRoutePageState extends State<_LaneRoutePage> {
+  final ScrollController _scrollController = ScrollController();
+  double _viewportHeight = 0;
+  bool _hasInitialPosition = false;
+  bool _isPositioning = false;
+
+  void _positionAtRoutes(double viewportHeight) {
+    if (_hasInitialPosition || _isPositioning) {
+      return;
+    }
+
+    _isPositioning = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isPositioning = false;
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+
+      _scrollController.jumpTo(
+        viewportHeight.clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        ),
+      );
+      setState(() => _hasInitialPosition = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final routes = widget.routes;
     final image = routes.isEmpty ? null : routes.first.image?.trim();
     final hasBackground = image != null && image.isNotEmpty;
 
+    if (!hasBackground) {
+      return _RouteResultsList(
+        routes: routes,
+        routeProvider: widget.routeProvider,
+      );
+    }
+
     return Stack(
       children: [
-        if (hasBackground)
-          Positioned.fill(
-            child: Image.network(
-              image,
-              fit: BoxFit.cover,
-              webHtmlElementStrategy: WebHtmlElementStrategy.never,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
+        Positioned.fill(
+          child: Image.network(
+            image,
+            fit: BoxFit.cover,
+            webHtmlElementStrategy: WebHtmlElementStrategy.never,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
-        if (hasBackground)
-          Positioned.fill(
-            child: ColoredBox(
-              color:
-                  Theme.of(context).colorScheme.surface.withValues(alpha: 0.86),
-            ),
+        ),
+        Positioned.fill(
+          child: AnimatedBuilder(
+            animation: _scrollController,
+            builder: (context, child) {
+              final revealProgress =
+                  _scrollController.hasClients && _viewportHeight > 0
+                      ? (1 -
+                              (_scrollController.offset / _viewportHeight)
+                                  .clamp(0.0, 1.0))
+                          .toDouble()
+                      : 0.0;
+              final overlayOpacity = 0.68 - (revealProgress * 0.54);
+              return ColoredBox(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surface
+                    .withValues(alpha: overlayOpacity),
+              );
+            },
           ),
-        _RouteResultsList(
-          routes: routes,
-          routeProvider: routeProvider,
+        ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            _viewportHeight = constraints.maxHeight;
+            _positionAtRoutes(_viewportHeight);
+
+            return AnimatedOpacity(
+              opacity: _hasInitialPosition ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: _viewportHeight,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 18),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.keyboard_arrow_up,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    sliver: SliverList.builder(
+                      itemCount: routes.length,
+                      itemBuilder: (context, index) {
+                        return _RouteResultCard(
+                          route: routes[index],
+                          routeProvider: widget.routeProvider,
+                        );
+                      },
+                    ),
+                  ),
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
+    );
+  }
+}
+
+class _RouteResultCard extends StatelessWidget {
+  final models.Route route;
+  final RouteProvider routeProvider;
+
+  const _RouteResultCard({
+    required this.route,
+    required this.routeProvider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RouteCard(
+      route: route,
+      hasLeadSent: routeProvider.hasUserLeadSentRoute(route.id),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RouteDetailScreen(routeId: route.id),
+          ),
+        );
+      },
     );
   }
 }
@@ -470,18 +610,9 @@ class _RouteResultsList extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         itemCount: routes.length,
         itemBuilder: (context, index) {
-          final route = routes[index];
-          return RouteCard(
-            route: route,
-            hasLeadSent: routeProvider.hasUserLeadSentRoute(route.id),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RouteDetailScreen(routeId: route.id),
-                ),
-              );
-            },
+          return _RouteResultCard(
+            route: routes[index],
+            routeProvider: routeProvider,
           );
         },
       ),
