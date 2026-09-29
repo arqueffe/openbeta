@@ -92,35 +92,25 @@ workflow; approval is required before any production upload. The production
 frontend path is `/home/cruxclubxi/cruxclub.fr/climb/`, and the plugin path is
 `/home/cruxclubxi/cruxclub.fr/wp-content/plugins/crux-climbing-gym/`.
 
-The deployment workflows use SFTP on port 22 with SSH key authentication and
+The deployment workflows use SFTP on port 22 with password authentication and
 strict host-key checking. Configure separate `staging` and `production` GitHub
 Environments and add these secrets to the matching environment:
 
 | Environment | Secret names |
 | --- | --- |
-| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PRIVATE_KEY_B64`, `STAGING_SFTP_KNOWN_HOSTS` |
-| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PRIVATE_KEY_B64`, `PROD_SFTP_KNOWN_HOSTS` |
+| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PASSWORD`, `STAGING_SFTP_KNOWN_HOSTS` |
+| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PASSWORD`, `PROD_SFTP_KNOWN_HOSTS` |
 
 Both host secrets should be `ftp.cluster027.hosting.ovh.net`. Use separate
-deployment users/keys where the host permits, granting staging access only to
+deployment accounts where the host permits, granting staging access only to
 `climb_test` and production access only to the live frontend and plugin
-directories. Do not use the FileZilla password as a workflow secret. Create a
-dedicated, non-interactive SSH key for each target and authorize its public key
-with the hosting provider. Verify each server host-key fingerprint against OVH
-or the fingerprint confirmed by FileZilla before saving the corresponding
-OpenSSH `known_hosts` entry. Save the private key secret as a single-line
-base64-encoded copy of the OpenSSH private-key file. For example, create a
-dedicated key and copy its base64 output directly into the matching GitHub
-Environment secret:
-
-```bash
-ssh-keygen -t ed25519 -N '' -f ~/.ssh/topo-staging-deploy
-base64 -w0 ~/.ssh/topo-staging-deploy
-```
-
-Never paste or commit the raw private key. The key must be unencrypted for
-non-interactive Actions use, and should grant SFTP-only access to the intended
-target.
+directories. Add the SFTP password only as the matching GitHub Environment
+secret, never as a repository file or workflow input. Verify the server host-key
+fingerprint against OVH or the fingerprint confirmed by FileZilla, then save
+the verified OpenSSH `known_hosts` entry in the corresponding Environment
+secret. Password authentication is sent inside the encrypted SFTP/SSH
+connection; strict host-key checking prevents connecting to an impersonated
+server.
 
 Restrict both Environments to deployments from `master`. Configure the
 `production` Environment with required reviewers and prevent self-review before

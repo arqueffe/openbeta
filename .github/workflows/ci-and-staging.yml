@@ -77,32 +77,29 @@ jobs:
         env:
           SFTP_HOST: ${{ secrets.STAGING_SFTP_HOST }}
           SFTP_USERNAME: ${{ secrets.STAGING_SFTP_USERNAME }}
-          SFTP_PRIVATE_KEY_B64: ${{ secrets.STAGING_SFTP_PRIVATE_KEY_B64 }}
+          SFTP_PASSWORD: ${{ secrets.STAGING_SFTP_PASSWORD }}
           SFTP_KNOWN_HOSTS: ${{ secrets.STAGING_SFTP_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
+          if [[ -z "$SFTP_USERNAME" || -z "$SFTP_PASSWORD" ]]; then
+            echo "::error::Missing staging environment secrets STAGING_SFTP_USERNAME or STAGING_SFTP_PASSWORD."
+            exit 1
+          fi
+          if [[ -z "$SFTP_HOST" || -z "$SFTP_KNOWN_HOSTS" ]]; then
+            echo "::error::Missing staging environment secret STAGING_SFTP_HOST or STAGING_SFTP_KNOWN_HOSTS."
+            exit 1
+          fi
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends sshpass
           install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
-          if [[ -z "$SFTP_PRIVATE_KEY_B64" ]]; then
-            echo "::error::Missing staging environment secret STAGING_SFTP_PRIVATE_KEY_B64."
-            exit 1
-          fi
-          if ! printf '%s' "$SFTP_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/deploy-ssh/id_ed25519"; then
-            echo "::error::STAGING_SFTP_PRIVATE_KEY_B64 is not valid single-line base64."
-            exit 1
-          fi
           printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
-          chmod 600 "$RUNNER_TEMP/deploy-ssh/id_ed25519" "$RUNNER_TEMP/deploy-ssh/known_hosts"
-          if ! ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null; then
-            echo "::error::Decoded staging key is not a valid unencrypted OpenSSH private key. Base64-encode the private key file (not its .pub file or your FTP password)."
-            exit 1
-          fi
+          chmod 600 "$RUNNER_TEMP/deploy-ssh/known_hosts"
           ssh-keygen -lf "$RUNNER_TEMP/deploy-ssh/known_hosts" > /dev/null
-          sftp \
+          SSHPASS="$SFTP_PASSWORD" sshpass -e sftp \
             -b - \
-            -i "$RUNNER_TEMP/deploy-ssh/id_ed25519" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
+            -o PreferredAuthentications=password,keyboard-interactive \
+            -o PubkeyAuthentication=no \
             -o "UserKnownHostsFile=$RUNNER_TEMP/deploy-ssh/known_hosts" \
             -P 22 \
             "$SFTP_USERNAME@$SFTP_HOST" <<'SFTP_BATCH'
