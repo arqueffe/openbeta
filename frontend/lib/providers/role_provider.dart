@@ -7,10 +7,8 @@ import '../config/api_config.dart';
 /// Provider for managing roles and user capabilities
 class RoleProvider extends ChangeNotifier {
   late final RoleService _roleService;
-  final AuthProvider _authProvider;
 
-  RoleProvider({required AuthProvider authProvider})
-      : _authProvider = authProvider {
+  RoleProvider({required AuthProvider authProvider}) {
     _roleService = RoleService(
       baseUrl: ApiConfig.fullWordPressUrl,
       authProvider: authProvider,
@@ -193,11 +191,14 @@ class RoleProvider extends ChangeNotifier {
   /// Get all users (admin only)
   Future<List<Map<String, dynamic>>> getUsers() async {
     try {
-      return await _roleService.getUsers();
+      final users = await _roleService.getUsers();
+      _error = null;
+      return users;
     } catch (e) {
       _error = e.toString();
       print('Error getting users: $e');
-      return [];
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -208,10 +209,12 @@ class RoleProvider extends ChangeNotifier {
   }) async {
     try {
       await _roleService.changeUserRole(userId: userId, roleSlug: roleSlug);
+      _error = null;
       return true;
     } catch (e) {
       _error = e.toString();
       print('Error changing user role: $e');
+      notifyListeners();
       return false;
     }
   }

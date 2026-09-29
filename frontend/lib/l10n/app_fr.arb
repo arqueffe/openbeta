@@ -147,6 +147,7 @@
   "laneHelper": "Numéro du couloir sur le mur",
   "laneNumber": "Couloir {number}",
   "holdColor": "Couleur des prises",
+  "holdColorRequired": "La couleur des prises est requise",
   "holdColorHelper": "Couleur des prises de la voie (optionnel)",
   "noSpecificColor": "Aucune couleur spécifique",
   "routeDescription": "Description",

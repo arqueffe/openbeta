@@ -52,6 +52,7 @@ class RouteProvider extends ChangeNotifier {
   final Set<int> _userLikedRouteIds = <int>{};
   final Set<int> _userProjectRouteIds = <int>{};
   bool _nameProposalsEndpointAvailable = true;
+  Future<void>? _ongoingRoutesLoad;
 
   // Getters
   List<Route> get routes => _currentRoutes;
@@ -204,6 +205,23 @@ class RouteProvider extends ChangeNotifier {
 
   // Load routes with optional filtering
   Future<void> loadRoutes({bool forceRefresh = false}) async {
+    final ongoingLoad = _ongoingRoutesLoad;
+    if (ongoingLoad != null) {
+      return ongoingLoad;
+    }
+
+    final load = _loadRoutes(forceRefresh: forceRefresh);
+    _ongoingRoutesLoad = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_ongoingRoutesLoad, load)) {
+        _ongoingRoutesLoad = null;
+      }
+    }
+  }
+
+  Future<void> _loadRoutes({required bool forceRefresh}) async {
     print('🔧 RouteProvider.loadRoutes() called');
     _setLoading(true);
     try {

@@ -938,6 +938,12 @@ abstract class AppLocalizations {
   /// **'Hold Color'**
   String get holdColor;
 
+  /// No description provided for @holdColorRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold color is required'**
+  String get holdColorRequired;
+
   /// No description provided for @holdColorHelper.
   ///
   /// In en, this message translates to:

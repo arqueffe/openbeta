@@ -8,14 +8,11 @@ class ApiConfig {
   /// WordPress API endpoint for web platform (same-origin)
   static const String wordPressApiPath = '/wp-json/crux/v1';
 
-  /// Fallback URL for non-web platforms (Python backend)
-  static const String fallbackApiUrl = 'http://localhost:5000/api';
-
   /// Full WordPress API URL (for non-web platforms that need absolute URL)
   static const String wordPressApiUrl = 'http://cruxclub.fr/wp-json/crux/v1';
 
   /// Get the appropriate base URL based on platform
-  static String get baseUrl => kIsWeb ? wordPressApiPath : fallbackApiUrl;
+  static String get baseUrl => kIsWeb ? wordPressApiPath : wordPressApiUrl;
 
   /// Get the full WordPress API URL (useful for role service, etc.)
   static String get fullWordPressUrl => wordPressApiUrl;

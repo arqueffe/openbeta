@@ -6,8 +6,8 @@ import '../services/js_auth_service.dart';
 import '../config/api_config.dart';
 
 class AuthService {
-  // WordPress API endpoint (same-origin)
-  static String get baseUrl => ApiConfig.wordPressApiPath;
+  // Same-origin on web and absolute on native platforms.
+  static String get baseUrl => ApiConfig.baseUrl;
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 

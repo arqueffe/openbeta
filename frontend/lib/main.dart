@@ -79,17 +79,15 @@ class ClimbingGymApp extends StatelessWidget {
           create: (context) => RouteProvider(
             authProvider: context.read<AuthProvider>(),
           ),
-          update: (context, auth, previous) => RouteProvider(
-            authProvider: auth,
-          ),
+          update: (context, auth, previous) =>
+              previous ?? RouteProvider(authProvider: auth),
         ),
         ChangeNotifierProxyProvider<AuthProvider, RoleProvider>(
           create: (context) => RoleProvider(
             authProvider: context.read<AuthProvider>(),
           ),
-          update: (context, auth, previous) => RoleProvider(
-            authProvider: auth,
-          ),
+          update: (context, auth, previous) =>
+              previous ?? RoleProvider(authProvider: auth),
         ),
         ChangeNotifierProxyProvider2<AuthProvider, RouteProvider,
             ProfileProvider>(
@@ -97,10 +95,11 @@ class ClimbingGymApp extends StatelessWidget {
             authProvider: context.read<AuthProvider>(),
             routeProvider: context.read<RouteProvider>(),
           ),
-          update: (context, auth, route, previous) => ProfileProvider(
-            authProvider: auth,
-            routeProvider: route,
-          ),
+          update: (context, auth, route, previous) => previous ??
+              ProfileProvider(
+                authProvider: auth,
+                routeProvider: route,
+              ),
         ),
       ],
       child: Consumer2<ThemeProvider, LocaleProvider>(

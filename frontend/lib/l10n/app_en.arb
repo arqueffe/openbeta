@@ -167,6 +167,7 @@
     }
   },
   "holdColor": "Hold Color",
+  "holdColorRequired": "Hold color is required",
   "holdColorHelper": "Color of the route holds (optional)",
   "noSpecificColor": "No specific color",
   "routeDescription": "Description",

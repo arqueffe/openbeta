@@ -670,8 +670,14 @@ class _RouteInteractionsState extends State<RouteInteractions> {
 
     final routeProvider = context.read<RouteProvider>();
     try {
-      await routeProvider.addAttemptsOptimized(widget.route.id, 1,
+      final success = await routeProvider.addAttemptsOptimized(widget.route.id, 1,
           notes: '', attemptType: attemptType);
+      if (!success) {
+        if (mounted) {
+          showRouteInteractionError(context, l10n.failedToAddAttempt);
+        }
+        return;
+      }
       // Refresh only the tick data to get updated attempt count
       await _refreshTickData();
       if (mounted) {
@@ -693,11 +699,15 @@ class _RouteInteractionsState extends State<RouteInteractions> {
       try {
         final success = await routeProvider.unmarkSendOptimized(
             widget.route.id, 'top_rope');
-        if (success) {
-          await _refreshTickData();
+        if (!success) {
           if (mounted) {
-            showRouteInteractionSuccess(context, l10n.topRopeSendRemoved);
+            showRouteInteractionError(context, l10n.failedToRemoveTopRopeSend);
           }
+          return;
+        }
+        await _refreshTickData();
+        if (mounted) {
+          showRouteInteractionSuccess(context, l10n.topRopeSendRemoved);
         }
       } catch (_) {
         if (mounted) {
@@ -710,7 +720,14 @@ class _RouteInteractionsState extends State<RouteInteractions> {
     } else {
       // Add the send
       try {
-        await routeProvider.markSendOptimized(widget.route.id, 'top_rope');
+        final success =
+            await routeProvider.markSendOptimized(widget.route.id, 'top_rope');
+        if (!success) {
+          if (mounted) {
+            showRouteInteractionError(context, l10n.failedToMarkTopRopeSend);
+          }
+          return;
+        }
         await _refreshTickData();
         if (mounted) {
           showRouteInteractionSuccess(
@@ -742,12 +759,16 @@ class _RouteInteractionsState extends State<RouteInteractions> {
       try {
         final success =
             await routeProvider.unmarkSendOptimized(widget.route.id, 'lead');
-        if (success) {
-          await _refreshTickData();
-          _checkIfProject(); // Also check project status as it may have changed
+        if (!success) {
           if (mounted) {
-            showRouteInteractionSuccess(context, l10n.leadSendRemoved);
+            showRouteInteractionError(context, l10n.failedToRemoveLeadSend);
           }
+          return;
+        }
+        await _refreshTickData();
+        _checkIfProject(); // Also check project status as it may have changed
+        if (mounted) {
+          showRouteInteractionSuccess(context, l10n.leadSendRemoved);
         }
       } catch (_) {
         if (mounted) {
@@ -760,7 +781,14 @@ class _RouteInteractionsState extends State<RouteInteractions> {
     } else {
       // Add the send
       try {
-        await routeProvider.markSendOptimized(widget.route.id, 'lead');
+        final success =
+            await routeProvider.markSendOptimized(widget.route.id, 'lead');
+        if (!success) {
+          if (mounted) {
+            showRouteInteractionError(context, l10n.failedToMarkLeadSend);
+          }
+          return;
+        }
         await _refreshTickData();
         _checkIfProject(); // Also check project status as it may have changed
         if (mounted) {

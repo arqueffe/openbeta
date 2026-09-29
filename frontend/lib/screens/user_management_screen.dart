@@ -36,6 +36,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _error = e.toString();
     }
 
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _isLoading = false;
     });
@@ -43,27 +46,35 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   Future<void> _changeUserRole(int userId, String currentRole) async {
     final newRole = await _showRoleSelectionDialog(currentRole);
-    if (newRole == null || newRole == currentRole) return;
+    if (newRole == null || newRole == currentRole || !mounted) return;
 
     setState(() {
       _isLoading = true;
     });
 
+    bool success;
     try {
       final roleProvider = context.read<RoleProvider>();
-      await roleProvider.changeUserRole(
+      success = await roleProvider.changeUserRole(
         userId: userId,
         roleSlug: newRole,
       );
+    } catch (_) {
+      success = false;
+    }
 
-      // Update local user data
+    if (!mounted) {
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    if (success) {
       final userIndex = _users.indexWhere((user) => user['id'] == userId);
       if (userIndex != -1) {
         _users[userIndex]['role_slug'] = newRole;
         _users[userIndex]['role_name'] = _getRoleDisplayName(newRole);
       }
 
-      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -73,8 +84,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           backgroundColor: context.semanticColors.successContainer,
         ),
       );
-    } catch (_) {
-      final l10n = AppLocalizations.of(context);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

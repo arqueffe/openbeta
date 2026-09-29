@@ -454,6 +454,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get holdColor => 'Couleur des prises';
 
   @override
+  String get holdColorRequired => 'La couleur des prises est requise';
+
+  @override
   String get holdColorHelper => 'Couleur des prises de la voie (optionnel)';
 
   @override

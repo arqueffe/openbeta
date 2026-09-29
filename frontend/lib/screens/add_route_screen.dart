@@ -55,6 +55,9 @@ class _AddRouteScreenState extends State<AddRouteScreen> {
     try {
       await routeProvider.loadGradeDefinitions();
       await routeProvider.loadHoldColors();
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _gradeDefinitions = routeProvider.gradeDefinitions;
         _holdColors = routeProvider.holdColors;
@@ -234,10 +237,10 @@ class _AddRouteScreenState extends State<AddRouteScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Color (optional)
+                          // Color
                           DropdownButtonFormField<int>(
                             decoration: InputDecoration(
-                              labelText: l10n.holdColor,
+                              labelText: '${l10n.holdColor} *',
                               border: const OutlineInputBorder(),
                               helperText: l10n.colorOfRouteHolds,
                             ),
@@ -280,6 +283,12 @@ class _AddRouteScreenState extends State<AddRouteScreen> {
                             ],
                             onChanged: (value) =>
                                 setState(() => _selectedColorId = value),
+                            validator: (value) {
+                              if (value == null) {
+                                return l10n.holdColorRequired;
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
 

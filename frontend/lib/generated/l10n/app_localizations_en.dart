@@ -451,6 +451,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get holdColor => 'Hold Color';
 
   @override
+  String get holdColorRequired => 'Hold color is required';
+
+  @override
   String get holdColorHelper => 'Color of the route holds (optional)';
 
   @override

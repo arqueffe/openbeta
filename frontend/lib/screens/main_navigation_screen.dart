@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../generated/l10n/app_localizations.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import '../providers/route_provider.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final int? initialLaneId;
@@ -27,20 +25,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          if (index == _currentIndex) {
+            return;
+          }
           setState(() {
             _currentIndex = index;
           });
-
-          // Refresh routes when returning to the Routes tab (index 0)
-          if (index == 0) {
-            final routeProvider =
-                Provider.of<RouteProvider>(context, listen: false);
-            routeProvider.refreshRoutes();
-          }
         },
         items: [
           BottomNavigationBarItem(
