@@ -161,6 +161,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginButton => 'Login';
 
   @override
+  String get forgotPassword => 'Forgot password?';
+
+  @override
+  String get passwordResetFailed =>
+      'Couldn\'t open the password reset page. Please try again.';
+
+  @override
   String get dontHaveAccount => 'Don\'t have an account? ';
 
   @override

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/api_config.dart';
 import '../generated/l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
@@ -109,6 +112,50 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
+      }
+    }
+  }
+
+  Future<void> _openPasswordReset() async {
+    final l10n = AppLocalizations.of(context);
+    final Uri resetUri;
+
+    if (kIsWeb) {
+      final currentUri = Uri.base;
+      final isLocal =
+          currentUri.host == 'localhost' || currentUri.host == '127.0.0.1';
+      resetUri = currentUri.replace(
+        scheme: isLocal ? currentUri.scheme : 'https',
+        path: '/wp-login.php',
+        queryParameters: const {'action': 'lostpassword'},
+        fragment: '',
+      );
+    } else {
+      final apiUri = Uri.parse(ApiConfig.wordPressApiUrl);
+      final isLocal = apiUri.host == 'localhost' || apiUri.host == '127.0.0.1';
+      resetUri = apiUri.replace(
+        scheme: isLocal ? apiUri.scheme : 'https',
+        path: '/wp-login.php',
+        queryParameters: const {'action': 'lostpassword'},
+        fragment: '',
+      );
+    }
+
+    try {
+      final opened = await launchUrl(
+        resetUri,
+        webOnlyWindowName: '_blank',
+      );
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.passwordResetFailed)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.passwordResetFailed)),
+        );
       }
     }
   }
@@ -234,7 +281,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   onSubmitted: _handleLogin,
                 ),
-                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _openPasswordReset,
+                    child: Text(l10n.forgotPassword),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
                 // Login button
                 ElevatedButton(

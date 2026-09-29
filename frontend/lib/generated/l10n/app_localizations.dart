@@ -398,6 +398,18 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get loginButton;
 
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPassword;
+
+  /// No description provided for @passwordResetFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the password reset page. Please try again.'**
+  String get passwordResetFailed;
+
   /// No description provided for @dontHaveAccount.
   ///
   /// In en, this message translates to:

@@ -164,6 +164,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get loginButton => 'Connexion';
 
   @override
+  String get forgotPassword => 'Mot de passe oublié ?';
+
+  @override
+  String get passwordResetFailed =>
+      'Impossible d\'ouvrir la page de réinitialisation. Veuillez réessayer.';
+
+  @override
   String get dontHaveAccount => 'Pas de compte ? ';
 
   @override

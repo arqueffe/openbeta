@@ -59,6 +59,8 @@
   "usernameOrEmail": "Username or Email",
   "pleaseEnterUsernameOrEmail": "Please enter your username or email",
   "loginButton": "Login",
+  "forgotPassword": "Forgot password?",
+  "passwordResetFailed": "Couldn't open the password reset page. Please try again.",
   "dontHaveAccount": "Don't have an account? ",
   "registerLink": "Register",
   "joinCruxClimbingGym": "Join Crux Climbing Gym",
