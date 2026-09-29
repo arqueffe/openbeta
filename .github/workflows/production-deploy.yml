@@ -91,12 +91,12 @@ jobs:
           DEPLOY_COMPONENTS: ${{ inputs.components }}
           SFTP_HOST: ${{ secrets.PROD_SFTP_HOST }}
           SFTP_USERNAME: ${{ secrets.PROD_SFTP_USERNAME }}
-          SFTP_PRIVATE_KEY: ${{ secrets.PROD_SFTP_PRIVATE_KEY }}
+          SFTP_PRIVATE_KEY_B64: ${{ secrets.PROD_SFTP_PRIVATE_KEY_B64 }}
           SFTP_KNOWN_HOSTS: ${{ secrets.PROD_SFTP_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           install -d -m 700 "$RUNNER_TEMP/deploy-ssh"
-          printf '%s\n' "$SFTP_PRIVATE_KEY" > "$RUNNER_TEMP/deploy-ssh/id_ed25519"
+          printf '%s' "$SFTP_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/deploy-ssh/id_ed25519"
           printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/deploy-ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/deploy-ssh/id_ed25519" "$RUNNER_TEMP/deploy-ssh/known_hosts"
           ssh-keygen -y -f "$RUNNER_TEMP/deploy-ssh/id_ed25519" > /dev/null

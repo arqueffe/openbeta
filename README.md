@@ -98,8 +98,8 @@ Environments and add these secrets to the matching environment:
 
 | Environment | Secret names |
 | --- | --- |
-| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PRIVATE_KEY`, `STAGING_SFTP_KNOWN_HOSTS` |
-| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PRIVATE_KEY`, `PROD_SFTP_KNOWN_HOSTS` |
+| `staging` | `STAGING_SFTP_HOST`, `STAGING_SFTP_USERNAME`, `STAGING_SFTP_PRIVATE_KEY_B64`, `STAGING_SFTP_KNOWN_HOSTS` |
+| `production` | `PROD_SFTP_HOST`, `PROD_SFTP_USERNAME`, `PROD_SFTP_PRIVATE_KEY_B64`, `PROD_SFTP_KNOWN_HOSTS` |
 
 Both host secrets should be `ftp.cluster027.hosting.ovh.net`. Use separate
 deployment users/keys where the host permits, granting staging access only to
@@ -108,7 +108,19 @@ directories. Do not use the FileZilla password as a workflow secret. Create a
 dedicated, non-interactive SSH key for each target and authorize its public key
 with the hosting provider. Verify each server host-key fingerprint against OVH
 or the fingerprint confirmed by FileZilla before saving the corresponding
-OpenSSH `known_hosts` entry.
+OpenSSH `known_hosts` entry. Save the private key secret as a single-line
+base64-encoded copy of the OpenSSH private-key file. For example, create a
+dedicated key and copy its base64 output directly into the matching GitHub
+Environment secret:
+
+```bash
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/topo-staging-deploy
+base64 -w0 ~/.ssh/topo-staging-deploy
+```
+
+Never paste or commit the raw private key. The key must be unencrypted for
+non-interactive Actions use, and should grant SFTP-only access to the intended
+target.
 
 Restrict both Environments to deployments from `master`. Configure the
 `production` Environment with required reviewers and prevent self-review before
