@@ -435,6 +435,48 @@ class _HomeScreenState extends State<HomeScreen>
                           },
                           child: Stack(
                             children: [
+                              if (progress > 0.7)
+                                Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 18),
+                                    child: Opacity(
+                                      opacity:
+                                          ((progress - 0.7) / 0.3).clamp(
+                                        0.0,
+                                        1.0,
+                                      ),
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.58,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.35,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 7,
+                                          ),
+                                          child: Text(
+                                            l10n.laneLabel(singleLaneId!),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               if (hasPreviousLane)
                                 const Align(
                                   alignment: Alignment.centerLeft,
