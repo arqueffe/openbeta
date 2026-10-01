@@ -596,71 +596,47 @@ abstract class AppLocalizations {
   /// **'Hide technical fixes'**
   String get weeklyUpdateHideFixes;
 
-  /// No description provided for @weeklyUpdateAnnouncementRoutesLocking.
+  /// No description provided for @weeklyUpdateAnnouncementLaneDiscs.
   ///
   /// In en, this message translates to:
-  /// **'Routes that already have a proposed name will be locked for printing. Unnamed routes can still be modified. Routes with proposed grades will have their overall grade adjusted for printing.'**
-  String get weeklyUpdateAnnouncementRoutesLocking;
+  /// **'We will soon print the lane discs. Please give unnamed routes a name as soon as possible so they can be included.'**
+  String get weeklyUpdateAnnouncementLaneDiscs;
 
-  /// No description provided for @weeklyUpdateFeatureItemSendUndo.
+  /// No description provided for @weeklyUpdateFeatureItemLaneBrowsing.
   ///
   /// In en, this message translates to:
-  /// **'Undo button added right after you register a send.'**
-  String get weeklyUpdateFeatureItemSendUndo;
+  /// **'The wall now opens lane-first: select a lane, then swipe between neighboring lanes and their routes.'**
+  String get weeklyUpdateFeatureItemLaneBrowsing;
 
-  /// No description provided for @weeklyUpdateFeatureItemRouteCardSentIndicator.
+  /// No description provided for @weeklyUpdateFeatureItemLanePhotos.
   ///
   /// In en, this message translates to:
-  /// **'Route cards now show a clear sent indicator.'**
-  String get weeklyUpdateFeatureItemRouteCardSentIndicator;
+  /// **'Pull down to open a lane photo full screen, then swipe to browse adjacent lane photos.'**
+  String get weeklyUpdateFeatureItemLanePhotos;
 
-  /// No description provided for @weeklyUpdateFeatureItemStatsDescriptions.
+  /// No description provided for @weeklyUpdateFeatureItemRouteDetails.
   ///
   /// In en, this message translates to:
-  /// **'Added clearer stat descriptions to make metrics easier to understand.'**
-  String get weeklyUpdateFeatureItemStatsDescriptions;
+  /// **'Route details have been redesigned with clearer information and easier access to sends, projects, likes, and comments.'**
+  String get weeklyUpdateFeatureItemRouteDetails;
 
-  /// No description provided for @weeklyUpdateFixesItemStatsQuality.
+  /// No description provided for @weeklyUpdateFeatureItemPasswordReset.
   ///
   /// In en, this message translates to:
-  /// **'Performance stats and graphs were fixed and cleaned for better accuracy.'**
-  String get weeklyUpdateFixesItemStatsQuality;
+  /// **'You can now reset a forgotten password directly from the login screen.'**
+  String get weeklyUpdateFeatureItemPasswordReset;
 
-  /// No description provided for @weeklyUpdateFixesItemNicknameSecurity.
+  /// No description provided for @weeklyUpdateFixesItemLanePerformance.
   ///
   /// In en, this message translates to:
-  /// **'Nickname rules and edit permissions were tightened for safer profiles.'**
-  String get weeklyUpdateFixesItemNicknameSecurity;
+  /// **'Lane changes and wall interactions are now faster and smoother.'**
+  String get weeklyUpdateFixesItemLanePerformance;
 
-  /// No description provided for @weeklyUpdateFixesItemPasswordAutofill.
+  /// No description provided for @weeklyUpdateFixesItemRouteRestoration.
   ///
   /// In en, this message translates to:
-  /// **'Login and register now use HTML forms for better password autofill.'**
-  String get weeklyUpdateFixesItemPasswordAutofill;
-
-  /// No description provided for @weeklyUpdateFixesItemDesktopDrag.
-  ///
-  /// In en, this message translates to:
-  /// **'Fixed desktop click-drag issue on the climbing wall image.'**
-  String get weeklyUpdateFixesItemDesktopDrag;
-
-  /// No description provided for @weeklyUpdateFixesItemLocalizedErrors.
-  ///
-  /// In en, this message translates to:
-  /// **'Login errors now show properly and are localized.'**
-  String get weeklyUpdateFixesItemLocalizedErrors;
-
-  /// No description provided for @weeklyUpdateFixesItemThemePolish.
-  ///
-  /// In en, this message translates to:
-  /// **'Color theme normalization for more consistent visuals.'**
-  String get weeklyUpdateFixesItemThemePolish;
-
-  /// No description provided for @weeklyUpdateFixesItemBackendStability.
-  ///
-  /// In en, this message translates to:
-  /// **'Backend stability improved for deleted rows and crux_users data handling.'**
-  String get weeklyUpdateFixesItemBackendStability;
+  /// **'Returning from a route or lane photo now restores your place more reliably.'**
+  String get weeklyUpdateFixesItemRouteRestoration;
 
   /// No description provided for @weeklyUpdateFooterNote.
   ///

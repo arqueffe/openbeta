@@ -267,48 +267,32 @@ class AppLocalizationsFr extends AppLocalizations {
   String get weeklyUpdateHideFixes => 'Masquer les correctifs techniques';
 
   @override
-  String get weeklyUpdateAnnouncementRoutesLocking =>
-      'Les voies qui ont déjà un nom proposé seront verrouillées pour l\'impression. Les voies sans nom peuvent encore être modifiées. Les voies avec des cotations proposées verront leur cotation globale ajustée pour l\'impression.';
+  String get weeklyUpdateAnnouncementLaneDiscs =>
+      'Nous imprimerons bientôt les disques des couloirs. Merci de donner au plus vite un nom aux voies qui n\'en ont pas encore afin qu\'elles puissent y figurer.';
 
   @override
-  String get weeklyUpdateFeatureItemSendUndo =>
-      'Bouton Annuler ajouté juste après l\'enregistrement d\'un enchaînement.';
+  String get weeklyUpdateFeatureItemLaneBrowsing =>
+      'Le mur s\'ouvre désormais par couloir : sélectionnez-en un, puis balayez pour parcourir les couloirs voisins et leurs voies.';
 
   @override
-  String get weeklyUpdateFeatureItemRouteCardSentIndicator =>
-      'Les cartes de voies affichent désormais clairement si la voie est enchaînée.';
+  String get weeklyUpdateFeatureItemLanePhotos =>
+      'Tirez vers le bas pour afficher la photo d\'un couloir en plein écran, puis balayez pour voir les photos voisines.';
 
   @override
-  String get weeklyUpdateFeatureItemStatsDescriptions =>
-      'Descriptions des statistiques ajoutées pour mieux comprendre les mesures.';
+  String get weeklyUpdateFeatureItemRouteDetails =>
+      'La page d\'une voie a été repensée avec des informations plus claires et un accès simplifié aux enchaînements, projets, mentions J\'aime et commentaires.';
 
   @override
-  String get weeklyUpdateFixesItemStatsQuality =>
-      'Les statistiques de performance et les graphiques ont été corrigés et nettoyés pour de meilleures mesures.';
+  String get weeklyUpdateFeatureItemPasswordReset =>
+      'Vous pouvez désormais réinitialiser un mot de passe oublié directement depuis l\'écran de connexion.';
 
   @override
-  String get weeklyUpdateFixesItemNicknameSecurity =>
-      'Les règles de pseudo et les permissions de modification ont été renforcées pour des profils plus sûrs.';
+  String get weeklyUpdateFixesItemLanePerformance =>
+      'Les changements de couloir et les interactions avec le mur sont maintenant plus rapides et plus fluides.';
 
   @override
-  String get weeklyUpdateFixesItemPasswordAutofill =>
-      'Connexion et inscription utilisent désormais des formulaires HTML pour un meilleur remplissage automatique des mots de passe.';
-
-  @override
-  String get weeklyUpdateFixesItemDesktopDrag =>
-      'Correction du bug de cliquer-glisser sur l\'image du mur en version desktop.';
-
-  @override
-  String get weeklyUpdateFixesItemLocalizedErrors =>
-      'Les erreurs de connexion s\'affichent correctement et sont maintenant localisées.';
-
-  @override
-  String get weeklyUpdateFixesItemThemePolish =>
-      'Normalisation du thème de couleurs pour un rendu plus cohérent.';
-
-  @override
-  String get weeklyUpdateFixesItemBackendStability =>
-      'Stabilité backend améliorée pour la gestion des lignes supprimées et la table crux_users.';
+  String get weeklyUpdateFixesItemRouteRestoration =>
+      'Votre position est désormais restaurée plus fidèlement lorsque vous revenez d\'une voie ou d\'une photo de couloir.';
 
   @override
   String get weeklyUpdateFooterNote => 'Merci de grimper avec nous!';

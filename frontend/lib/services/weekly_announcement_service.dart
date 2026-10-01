@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WeeklyAnnouncementService {
-  static const int currentAnnouncementVersion = 1;
+  static const int currentAnnouncementVersion = 2;
   static const String _lastShownVersionKey =
       'weekly_announcement_last_shown_version';
 

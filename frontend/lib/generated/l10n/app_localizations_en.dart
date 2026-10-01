@@ -264,48 +264,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weeklyUpdateHideFixes => 'Hide technical fixes';
 
   @override
-  String get weeklyUpdateAnnouncementRoutesLocking =>
-      'Routes that already have a proposed name will be locked for printing. Unnamed routes can still be modified. Routes with proposed grades will have their overall grade adjusted for printing.';
+  String get weeklyUpdateAnnouncementLaneDiscs =>
+      'We will soon print the lane discs. Please give unnamed routes a name as soon as possible so they can be included.';
 
   @override
-  String get weeklyUpdateFeatureItemSendUndo =>
-      'Undo button added right after you register a send.';
+  String get weeklyUpdateFeatureItemLaneBrowsing =>
+      'The wall now opens lane-first: select a lane, then swipe between neighboring lanes and their routes.';
 
   @override
-  String get weeklyUpdateFeatureItemRouteCardSentIndicator =>
-      'Route cards now show a clear sent indicator.';
+  String get weeklyUpdateFeatureItemLanePhotos =>
+      'Pull down to open a lane photo full screen, then swipe to browse adjacent lane photos.';
 
   @override
-  String get weeklyUpdateFeatureItemStatsDescriptions =>
-      'Added clearer stat descriptions to make metrics easier to understand.';
+  String get weeklyUpdateFeatureItemRouteDetails =>
+      'Route details have been redesigned with clearer information and easier access to sends, projects, likes, and comments.';
 
   @override
-  String get weeklyUpdateFixesItemStatsQuality =>
-      'Performance stats and graphs were fixed and cleaned for better accuracy.';
+  String get weeklyUpdateFeatureItemPasswordReset =>
+      'You can now reset a forgotten password directly from the login screen.';
 
   @override
-  String get weeklyUpdateFixesItemNicknameSecurity =>
-      'Nickname rules and edit permissions were tightened for safer profiles.';
+  String get weeklyUpdateFixesItemLanePerformance =>
+      'Lane changes and wall interactions are now faster and smoother.';
 
   @override
-  String get weeklyUpdateFixesItemPasswordAutofill =>
-      'Login and register now use HTML forms for better password autofill.';
-
-  @override
-  String get weeklyUpdateFixesItemDesktopDrag =>
-      'Fixed desktop click-drag issue on the climbing wall image.';
-
-  @override
-  String get weeklyUpdateFixesItemLocalizedErrors =>
-      'Login errors now show properly and are localized.';
-
-  @override
-  String get weeklyUpdateFixesItemThemePolish =>
-      'Color theme normalization for more consistent visuals.';
-
-  @override
-  String get weeklyUpdateFixesItemBackendStability =>
-      'Backend stability improved for deleted rows and crux_users data handling.';
+  String get weeklyUpdateFixesItemRouteRestoration =>
+      'Returning from a route or lane photo now restores your place more reliably.';
 
   @override
   String get weeklyUpdateFooterNote => 'Thanks for climbing with us!';

@@ -11,21 +11,17 @@ Future<void> showWeeklyUpdateDialog(BuildContext context) {
   final l10n = AppLocalizations.of(context);
   final colorScheme = Theme.of(context).colorScheme;
   final announcementItems = <String>[
-    l10n.weeklyUpdateAnnouncementRoutesLocking,
+    l10n.weeklyUpdateAnnouncementLaneDiscs,
   ];
   final featuresItems = <String>[
-    l10n.weeklyUpdateFeatureItemSendUndo,
-    l10n.weeklyUpdateFeatureItemRouteCardSentIndicator,
-    l10n.weeklyUpdateFeatureItemStatsDescriptions,
+    l10n.weeklyUpdateFeatureItemLaneBrowsing,
+    l10n.weeklyUpdateFeatureItemLanePhotos,
+    l10n.weeklyUpdateFeatureItemRouteDetails,
+    l10n.weeklyUpdateFeatureItemPasswordReset,
   ];
   final fixesItems = <String>[
-    l10n.weeklyUpdateFixesItemStatsQuality,
-    l10n.weeklyUpdateFixesItemNicknameSecurity,
-    l10n.weeklyUpdateFixesItemPasswordAutofill,
-    l10n.weeklyUpdateFixesItemDesktopDrag,
-    l10n.weeklyUpdateFixesItemLocalizedErrors,
-    l10n.weeklyUpdateFixesItemThemePolish,
-    l10n.weeklyUpdateFixesItemBackendStability,
+    l10n.weeklyUpdateFixesItemLanePerformance,
+    l10n.weeklyUpdateFixesItemRouteRestoration,
   ];
 
   return showDialog<void>(
