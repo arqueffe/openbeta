@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/climbing_wall_models.dart';
@@ -8,6 +9,7 @@ class InteractiveClimbingWall extends StatefulWidget {
   final ValueChanged<int>? onLaneSelected;
   final int? selectedLaneId;
   final Map<int, double>? laneSelectionStrengths;
+  final ValueListenable<Map<int, double>>? laneSelectionStrengthsListenable;
   final double? height;
   final bool showCard;
 
@@ -16,6 +18,7 @@ class InteractiveClimbingWall extends StatefulWidget {
     this.onLaneSelected,
     this.selectedLaneId,
     this.laneSelectionStrengths,
+    this.laneSelectionStrengthsListenable,
     this.height,
     this.showCard = true,
   });
@@ -90,92 +93,112 @@ class _InteractiveClimbingWallState extends State<InteractiveClimbingWall> {
 
     return Consumer<RouteProvider>(
       builder: (context, routeProvider, child) {
-        final hasActiveFilters = routeProvider.hasActiveFilters;
-        final matchingLaneIds = hasActiveFilters
-            ? routeProvider.routes.map((route) => route.lane).toSet()
-            : <int>{};
-
-        final wall = Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            height: widget.height ?? MediaQuery.of(context).size.height * 0.3,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final widthScale =
-                    constraints.maxWidth / _wallData!.imageInfo.width;
-                final heightScale =
-                    constraints.maxHeight / _wallData!.imageInfo.height;
-                final scale =
-                    widthScale < heightScale ? widthScale : heightScale;
-                final scaledWidth = _wallData!.imageInfo.width * scale;
-                final scaledHeight = _wallData!.imageInfo.height * scale;
-
-                return Center(
-                  child: SizedBox(
-                    width: scaledWidth,
-                    height: scaledHeight,
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: scaledWidth,
-                          height: scaledHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: const DecorationImage(
-                              image: AssetImage('assets/models/crux.png'),
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                        ..._wallData!.shapes.map((shape) {
-                          final selectionStrength =
-                              widget.laneSelectionStrengths?[shape.laneId] ??
-                                  (widget.selectedLaneId != null
-                                      ? (widget.selectedLaneId == shape.laneId
-                                          ? 1.0
-                                          : 0.0)
-                                      : (routeProvider.selectedLaneIds
-                                              .contains(shape.laneId)
-                                          ? 1.0
-                                          : 0.0));
-                          final isSelected = selectionStrength > 0.001;
-                          final isDimmed =
-                              widget.laneSelectionStrengths != null ||
-                                      widget.selectedLaneId != null
-                                  ? !isSelected
-                                  : hasActiveFilters &&
-                                      !matchingLaneIds.contains(shape.laneId);
-                          final dimStrength =
-                              widget.laneSelectionStrengths != null
-                                  ? 1 - selectionStrength
-                                  : (isDimmed ? 1.0 : 0.0);
-                          return _buildLaneOverlay(
-                            shape,
-                            scale,
-                            selectionStrength,
-                            dimStrength,
-                            () => _onLaneSelected(routeProvider, shape.laneId),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-
-        if (!widget.showCard) {
-          return wall;
+        final strengthsListenable = widget.laneSelectionStrengthsListenable;
+        if (strengthsListenable == null) {
+          return _buildWall(
+            context,
+            routeProvider,
+            widget.laneSelectionStrengths,
+          );
         }
 
-        return Card(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          clipBehavior: Clip.antiAlias,
-          child: wall,
+        return ValueListenableBuilder<Map<int, double>>(
+          valueListenable: strengthsListenable,
+          builder: (context, strengths, child) =>
+              _buildWall(context, routeProvider, strengths),
         );
       },
+    );
+  }
+
+  Widget _buildWall(
+    BuildContext context,
+    RouteProvider routeProvider,
+    Map<int, double>? laneSelectionStrengths,
+  ) {
+    final hasActiveFilters = routeProvider.hasActiveFilters;
+    final matchingLaneIds = hasActiveFilters
+        ? routeProvider.routes.map((route) => route.lane).toSet()
+        : <int>{};
+    final hasLaneSelectionStrengths =
+        laneSelectionStrengths != null && laneSelectionStrengths.isNotEmpty;
+
+    final wall = Padding(
+      padding: const EdgeInsets.all(16),
+      child: SizedBox(
+        height: widget.height ?? MediaQuery.of(context).size.height * 0.3,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final widthScale =
+                constraints.maxWidth / _wallData!.imageInfo.width;
+            final heightScale =
+                constraints.maxHeight / _wallData!.imageInfo.height;
+            final scale = widthScale < heightScale ? widthScale : heightScale;
+            final scaledWidth = _wallData!.imageInfo.width * scale;
+            final scaledHeight = _wallData!.imageInfo.height * scale;
+
+            return Center(
+              child: SizedBox(
+                width: scaledWidth,
+                height: scaledHeight,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: scaledWidth,
+                      height: scaledHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/models/crux.png'),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    ..._wallData!.shapes.map((shape) {
+                      final selectionStrength =
+                          laneSelectionStrengths?[shape.laneId] ??
+                              (widget.selectedLaneId != null
+                                  ? (widget.selectedLaneId == shape.laneId
+                                      ? 1.0
+                                      : 0.0)
+                                  : (routeProvider.selectedLaneIds
+                                          .contains(shape.laneId)
+                                      ? 1.0
+                                      : 0.0));
+                      final isSelected = selectionStrength > 0.001;
+                      final isDimmed = hasLaneSelectionStrengths ||
+                              widget.selectedLaneId != null
+                          ? !isSelected
+                          : hasActiveFilters &&
+                              !matchingLaneIds.contains(shape.laneId);
+                      final dimStrength = hasLaneSelectionStrengths
+                          ? 1 - selectionStrength
+                          : (isDimmed ? 1.0 : 0.0);
+                      return _buildLaneOverlay(
+                        shape,
+                        scale,
+                        selectionStrength,
+                        dimStrength,
+                        () => _onLaneSelected(routeProvider, shape.laneId),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    if (!widget.showCard) {
+      return wall;
+    }
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      clipBehavior: Clip.antiAlias,
+      child: wall,
     );
   }
 

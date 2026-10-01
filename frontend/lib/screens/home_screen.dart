@@ -26,11 +26,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  Map<int, double> _wallLaneStrengths = const {};
+  final ValueNotifier<Map<int, double>> _wallLaneStrengths =
+      ValueNotifier(const {});
   final Set<String> _preloadedLaneImages = {};
   late final AnimationController _laneImageRevealController;
   double _fullScreenHorizontalDrag = 0;
   int? _fullScreenLaneTargetId;
+  bool _isChangingFullScreenLane = false;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _laneImageRevealController.dispose();
+    _wallLaneStrengths.dispose();
     super.dispose();
   }
 
@@ -73,10 +76,8 @@ class _HomeScreenState extends State<HomeScreen>
     routeProvider.toggleLaneFilter(laneId);
     _syncLaneUrl(routeProvider.selectedLaneIds);
     final selectedLaneIds = routeProvider.selectedLaneIds;
-    setState(() {
-      _wallLaneStrengths =
-          selectedLaneIds.length == 1 ? {selectedLaneIds.first: 1} : const {};
-    });
+    _wallLaneStrengths.value =
+        selectedLaneIds.length == 1 ? {selectedLaneIds.first: 1} : const {};
   }
 
   void _syncLaneUrl(Set<int> selectedLaneIds) {
@@ -86,9 +87,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _updateWallLaneStrengths(Map<int, double> strengths) {
-    setState(() {
-      _wallLaneStrengths = strengths;
-    });
+    _wallLaneStrengths.value = strengths;
   }
 
   void _selectCarouselLane(RouteProvider routeProvider, int laneId) {
@@ -159,27 +158,47 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _selectFullScreenLane(
+  Future<void> _selectFullScreenLane(
     RouteProvider routeProvider,
     List<Lane> lanes,
     int selectedLaneId,
     int direction,
-  ) {
+  ) async {
+    if (_isChangingFullScreenLane) {
+      return;
+    }
+
     final selectedIndex = lanes.indexWhere(
       (lane) => lane.id == selectedLaneId,
     );
     final targetIndex = selectedIndex + direction;
-    if (selectedIndex < 0 ||
-        targetIndex < 0 ||
-        targetIndex >= lanes.length) {
+    if (selectedIndex < 0 || targetIndex < 0 || targetIndex >= lanes.length) {
       return;
     }
 
     final laneId = lanes[targetIndex].id;
-    _fullScreenLaneTargetId = laneId;
-    routeProvider.setLaneIdsFilter({laneId});
-    replaceLaneUrl(laneId);
-    setState(() => _wallLaneStrengths = {laneId: 1});
+    _isChangingFullScreenLane = true;
+    try {
+      final image = _laneImageFor(routeProvider, laneId);
+      if (image != null) {
+        try {
+          await precacheImage(NetworkImage(image), context);
+        } catch (error) {
+          debugPrint('Could not preload lane image before switching: $error');
+        }
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      _fullScreenLaneTargetId = laneId;
+      routeProvider.setLaneIdsFilter({laneId});
+      replaceLaneUrl(laneId);
+      _wallLaneStrengths.value = {laneId: 1};
+    } finally {
+      _isChangingFullScreenLane = false;
+    }
   }
 
   @override
@@ -257,11 +276,6 @@ class _HomeScreenState extends State<HomeScreen>
               selectedLaneIds.length == 1 ? selectedLaneIds.first : null;
           final lanes = [...routeProvider.lanes]
             ..sort((a, b) => a.id.compareTo(b.id));
-          final wallLaneStrengths = singleLaneId == null
-              ? null
-              : (_wallLaneStrengths.containsKey(singleLaneId)
-                  ? _wallLaneStrengths
-                  : {singleLaneId: 1.0});
           final laneImage = singleLaneId == null
               ? null
               : _laneImageFor(routeProvider, singleLaneId);
@@ -273,7 +287,9 @@ class _HomeScreenState extends State<HomeScreen>
           final content = Column(
             children: [
               InteractiveClimbingWall(
-                laneSelectionStrengths: wallLaneStrengths,
+                selectedLaneId: singleLaneId,
+                laneSelectionStrengthsListenable:
+                    singleLaneId == null ? null : _wallLaneStrengths,
                 onLaneSelected: (laneId) => _toggleLane(routeProvider, laneId),
               ),
               _FilterSummaryBar(
@@ -291,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
                   _laneImageRevealController.value = 0;
                   routeProvider.clearAllFilters();
                   replaceLaneUrl(null);
-                  setState(() => _wallLaneStrengths = const {});
+                  _wallLaneStrengths.value = const {};
                 },
               ),
               Expanded(
@@ -314,22 +330,21 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           );
 
-          if (!hasLaneImage) {
-            return content;
-          }
-
           return AnimatedBuilder(
             animation: _laneImageRevealController,
             child: content,
             builder: (context, child) {
+              if (laneImage == null) {
+                return child!;
+              }
+
               final progress = _laneImageRevealController.value;
               final laneImageProvider = NetworkImage(laneImage);
               final selectedLaneIndex = lanes.indexWhere(
                 (lane) => lane.id == singleLaneId,
               );
               final hasPreviousLane = selectedLaneIndex > 0;
-              final hasNextLane =
-                  selectedLaneIndex >= 0 &&
+              final hasNextLane = selectedLaneIndex >= 0 &&
                   selectedLaneIndex < lanes.length - 1;
               return LayoutBuilder(
                 builder: (context, constraints) {
@@ -441,8 +456,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   child: Padding(
                                     padding: const EdgeInsets.only(top: 18),
                                     child: Opacity(
-                                      opacity:
-                                          ((progress - 0.7) / 0.3).clamp(
+                                      opacity: ((progress - 0.7) / 0.3).clamp(
                                         0.0,
                                         1.0,
                                       ),
@@ -817,8 +831,7 @@ class _LaneRoutePage extends StatelessWidget {
             notification is OverscrollNotification &&
             notification.overscroll < 0) {
           onImagePull(
-            -notification.overscroll /
-                notification.metrics.viewportDimension,
+            -notification.overscroll / notification.metrics.viewportDimension,
           );
           return true;
         }

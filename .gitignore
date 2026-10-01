@@ -1,2 +1,11 @@
 # VSCode
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Local development tools and environments
+.mise.local.toml
+.venv/
+__pycache__/
+*.py[cod]

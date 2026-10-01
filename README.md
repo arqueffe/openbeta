@@ -76,6 +76,32 @@ dependency installation, analysis, tests, and web builds. The WordPress plugin
 in `backend/` is loaded by a separate WordPress installation; this repository
 does not include a WordPress runtime or database.
 
+### Manual `climb_test` Deployment
+
+Deploy staging directly from this checkout; **do not use a GitHub Actions
+workflow**:
+
+```bash
+python3 scripts/deploy_climb_test.py
+```
+
+The command runs analysis, tests, and a release web build with the
+`/climb_test/` base path, then uploads `frontend/build/web/` directly to
+`/home/cruxclubxi/cruxclub.fr/climb_test/`. It reads the SFTP username from the
+saved FileZilla connection and the password from the Linux system keyring,
+uploads with `curl` over SFTP, and verifies both the deployed file and the
+public `https://cruxclub.fr/climb_test/` endpoint.
+
+Before using it, this Linux user must have:
+
+- a saved FileZilla connection for `ftp.cluster027.hosting.ovh.net`;
+- an SFTP password registered in the system keyring under the `host` attribute
+  for that hostname; and
+- its verified SSH host key in `~/.ssh/known_hosts`.
+
+The script never prints credentials or stores them in the repository. It
+overwrites uploaded files but does not delete stale remote files.
+
 ### Automated Deployment
 
 GitHub Actions runs Flutter analysis/tests/builds and PHP syntax checks on pull

@@ -40,17 +40,19 @@ void _configureLoggingGuards() {
   };
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  _configureLoggingGuards();
-
-  // Initialize InAppWebView for flutter_3d_controller
-  if (InAppWebViewPlatform.instance is InAppWebViewPlatform) {
-    // Platform is already initialized
-  }
-
+void main() {
   runZonedGuarded(
-    () => runApp(const ClimbingGymApp()),
+    () {
+      WidgetsFlutterBinding.ensureInitialized();
+      _configureLoggingGuards();
+
+      // Initialize InAppWebView for flutter_3d_controller
+      if (InAppWebViewPlatform.instance is InAppWebViewPlatform) {
+        // Platform is already initialized
+      }
+
+      runApp(const ClimbingGymApp());
+    },
     (error, stackTrace) {
       debugPrint('Uncaught app error: $error');
       debugPrint('Stack trace: $stackTrace');
