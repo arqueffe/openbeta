@@ -23,6 +23,8 @@ class RouteDetailScreen extends StatefulWidget {
 
 class _RouteDetailScreenState extends State<RouteDetailScreen>
     with SingleTickerProviderStateMixin {
+  static const _imageRestoreThreshold = 0.92;
+
   late final AnimationController _imageRevealController;
 
   @override
@@ -198,7 +200,14 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
                     details.delta.dy / constraints.maxHeight,
                   );
                 },
-                onVerticalDragEnd: (_) => _settleImageReveal(),
+                onVerticalDragEnd: (_) {
+                  _imageRevealController.animateTo(
+                    _imageRevealController.value < _imageRestoreThreshold
+                        ? 0
+                        : 1,
+                    curve: Curves.easeOutCubic,
+                  );
+                },
               ),
             const Positioned(
               top: 12,
