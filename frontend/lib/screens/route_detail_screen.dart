@@ -24,7 +24,6 @@ class RouteDetailScreen extends StatefulWidget {
 class _RouteDetailScreenState extends State<RouteDetailScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _imageRevealController;
-  bool _sheetIsAtTop = true;
 
   @override
   void initState() {
@@ -57,7 +56,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
 
   void _settleImageReveal() {
     _imageRevealController.animateTo(
-      _imageRevealController.value > 0.2 ? 1 : 0,
+      _imageRevealController.value > 0.18 ? 1 : 0,
       curve: Curves.easeOutCubic,
     );
   }
@@ -147,13 +146,23 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
               },
               child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
-                  if (notification.metrics.axis == Axis.vertical) {
-                    _sheetIsAtTop = notification.metrics.pixels <= 0;
+                  if (notification is OverscrollNotification &&
+                      notification.overscroll < 0) {
+                    _updateImageReveal(
+                      -notification.overscroll /
+                          notification.metrics.viewportDimension,
+                    );
+                    return true;
+                  }
+                  if (notification is ScrollEndNotification) {
+                    _settleImageReveal();
                   }
                   return false;
                 },
                 child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   slivers: [
                     SliverToBoxAdapter(child: SizedBox(height: sheetTop)),
                     SliverToBoxAdapter(
@@ -171,14 +180,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
                                 1,
                                 curve: Curves.easeOutCubic,
                               ),
-                              onDragUpdate: (details) {
-                                if (_sheetIsAtTop) {
-                                  _updateImageReveal(
-                                    details.delta.dy / constraints.maxHeight,
-                                  );
-                                }
-                              },
-                              onDragEnd: (_) => _settleImageReveal(),
                             ),
                             _buildRouteDetails(route, l10n),
                           ],
@@ -361,13 +362,9 @@ class _RouteBackButton extends StatelessWidget {
 
 class _RouteImageRevealHandle extends StatelessWidget {
   final VoidCallback onTap;
-  final GestureDragUpdateCallback onDragUpdate;
-  final GestureDragEndCallback onDragEnd;
 
   const _RouteImageRevealHandle({
     required this.onTap,
-    required this.onDragUpdate,
-    required this.onDragEnd,
   });
 
   @override
@@ -375,8 +372,6 @@ class _RouteImageRevealHandle extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      onVerticalDragUpdate: onDragUpdate,
-      onVerticalDragEnd: onDragEnd,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
         child: Row(
