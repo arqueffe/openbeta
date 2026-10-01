@@ -10,7 +10,6 @@ import '../utils/color_utils.dart';
 import '../widgets/grade_chip.dart';
 import '../widgets/route_detail/name_proposal_section.dart';
 import '../widgets/route_detail/route_detail_activity_sections.dart';
-import '../widgets/route_detail/route_detail_media.dart';
 import '../widgets/route_interactions.dart';
 
 class RouteDetailScreen extends StatefulWidget {
@@ -168,6 +167,10 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
                         child: Column(
                           children: [
                             _RouteImageRevealHandle(
+                              onTap: () => _imageRevealController.animateTo(
+                                1,
+                                curve: Curves.easeOutCubic,
+                              ),
                               onDragUpdate: (details) {
                                 if (_sheetIsAtTop) {
                                   _updateImageReveal(
@@ -189,12 +192,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
             if (_imageRevealController.value > 0.001)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () async {
-                  await showDialog(
-                    context: context,
-                    builder: (_) => RouteImageDialog(route.image!),
-                  );
-                },
                 onVerticalDragUpdate: (details) {
                   _updateImageReveal(
                     details.delta.dy / constraints.maxHeight,
@@ -202,11 +199,29 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
                 },
                 onVerticalDragEnd: (_) => _settleImageReveal(),
               ),
+            const Positioned(
+              top: 12,
+              left: 12,
+              child: SafeArea(child: _RouteBackButton()),
+            ),
             if (_imageRevealController.value > 0.001)
-              const Positioned(
-                top: 12,
-                left: 12,
-                child: SafeArea(child: _RouteBackButton()),
+              Positioned(
+                bottom: 24,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: IconButton(
+                    onPressed: () => _imageRevealController.animateTo(
+                      0,
+                      curve: Curves.easeOutCubic,
+                    ),
+                    icon: const Icon(Icons.keyboard_arrow_up),
+                    color: Colors.white,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
               ),
           ],
         );
@@ -257,74 +272,53 @@ class _RouteHero extends StatelessWidget {
     final image = route.image;
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: image == null
-          ? null
-          : () async {
-              await showDialog(
-                context: context,
-                builder: (_) => RouteImageDialog(image),
-              );
-            },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (image != null)
-            ClipRect(
-              child: ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                child: Transform.scale(
-                  scale: 1.08,
-                  child: Image.network(
-                    image,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.low,
-                    webHtmlElementStrategy: WebHtmlElementStrategy.never,
-                    errorBuilder: (_, __, ___) => _RouteImagePlaceholder(
-                      color: theme.colorScheme.primaryContainer,
-                    ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (image != null)
+          ClipRect(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: Transform.scale(
+                scale: 1.08,
+                child: Image.network(
+                  image,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.low,
+                  webHtmlElementStrategy: WebHtmlElementStrategy.never,
+                  errorBuilder: (_, __, ___) => _RouteImagePlaceholder(
+                    color: theme.colorScheme.primaryContainer,
                   ),
                 ),
               ),
-            )
-          else
-            _RouteImagePlaceholder(color: theme.colorScheme.primaryContainer),
-          if (image != null)
-            ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
-          if (image != null)
-            Image.network(
-              image,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              webHtmlElementStrategy: WebHtmlElementStrategy.never,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x22000000),
-                  Color(0x11000000),
-                  Color(0xB8000000),
-                ],
-              ),
+          )
+        else
+          _RouteImagePlaceholder(color: theme.colorScheme.primaryContainer),
+        if (image != null)
+          ColoredBox(color: Colors.black.withValues(alpha: 0.2)),
+        if (image != null)
+          Image.network(
+            image,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            webHtmlElementStrategy: WebHtmlElementStrategy.never,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x22000000),
+                Color(0x11000000),
+                Color(0xB8000000),
+              ],
             ),
           ),
-          if (image != null)
-            const Positioned(
-              right: 20,
-              bottom: 20,
-              child: _PhotoHint(),
-            ),
-          const Positioned(
-            top: 12,
-            left: 12,
-            child: SafeArea(child: _RouteBackButton()),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -349,22 +343,6 @@ class _RouteImagePlaceholder extends StatelessWidget {
   }
 }
 
-class _PhotoHint extends StatelessWidget {
-  const _PhotoHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Icon(Icons.zoom_out_map, color: Colors.white, size: 18),
-    );
-  }
-}
-
 class _RouteBackButton extends StatelessWidget {
   const _RouteBackButton();
 
@@ -382,10 +360,12 @@ class _RouteBackButton extends StatelessWidget {
 }
 
 class _RouteImageRevealHandle extends StatelessWidget {
+  final VoidCallback onTap;
   final GestureDragUpdateCallback onDragUpdate;
   final GestureDragEndCallback onDragEnd;
 
   const _RouteImageRevealHandle({
+    required this.onTap,
     required this.onDragUpdate,
     required this.onDragEnd,
   });
@@ -394,19 +374,29 @@ class _RouteImageRevealHandle extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: onTap,
       onVerticalDragUpdate: onDragUpdate,
       onVerticalDragEnd: onDragEnd,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-        child: Center(
-          child: Container(
-            width: 42,
-            height: 5,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              borderRadius: BorderRadius.circular(999),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-          ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.keyboard_arrow_down,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ],
         ),
       ),
     );
