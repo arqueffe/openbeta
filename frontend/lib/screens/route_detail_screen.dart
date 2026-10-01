@@ -24,6 +24,7 @@ class RouteDetailScreen extends StatefulWidget {
 class _RouteDetailScreenState extends State<RouteDetailScreen>
     with SingleTickerProviderStateMixin {
   static const _imageRestoreThreshold = 0.92;
+  static const _imageRestoreDragMultiplier = 4.0;
 
   late final AnimationController _imageRevealController;
 
@@ -196,8 +197,11 @@ class _RouteDetailScreenState extends State<RouteDetailScreen>
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onVerticalDragUpdate: (details) {
+                  final delta = details.delta.dy < 0
+                      ? details.delta.dy * _imageRestoreDragMultiplier
+                      : details.delta.dy;
                   _updateImageReveal(
-                    details.delta.dy / constraints.maxHeight,
+                    delta / constraints.maxHeight,
                   );
                 },
                 onVerticalDragEnd: (_) {
